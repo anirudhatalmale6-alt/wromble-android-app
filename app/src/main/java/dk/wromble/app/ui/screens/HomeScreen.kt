@@ -72,6 +72,13 @@ fun HomeScreen(nav: NavController, vm: MainViewModel) {
             }
         }
 
+        // Wromble+ band
+        item {
+            Spacer(Modifier.height(2.dp))
+            WromblePlusBand(onClick = { nav.navigate("wromble-plus") })
+            Spacer(Modifier.height(14.dp))
+        }
+
         // Categories row
         if (vm.categories.isNotEmpty()) {
             item {

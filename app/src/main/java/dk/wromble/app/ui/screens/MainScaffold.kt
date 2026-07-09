@@ -21,8 +21,9 @@ fun MainScaffold(nav: NavController, vm: MainViewModel) {
     var selected by remember { mutableStateOf(0) }
     val tabs = listOf(
         Tab("Forside", Icons.Filled.Home),
-        Tab("Restauranter", Icons.Filled.Restaurant),
+        Tab("Steder", Icons.Filled.Restaurant),
         Tab("Ordrer", Icons.Filled.ReceiptLong),
+        Tab("Chat", Icons.Filled.ChatBubble),
         Tab("Profil", Icons.Filled.Person)
     )
 
@@ -59,6 +60,7 @@ fun MainScaffold(nav: NavController, vm: MainViewModel) {
                 0 -> HomeScreen(nav, vm)
                 1 -> RestaurantsListScreen(nav, vm)
                 2 -> OrdersScreen(nav, vm)
+                3 -> ChatScreen()
                 else -> ProfileScreen(nav)
             }
         }

@@ -12,15 +12,30 @@ android {
         applicationId = "dk.wromble.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
         vectorDrawables { useSupportLibrary = true }
+    }
+
+    signingConfigs {
+        create("upload") {
+            // Samme signeringsnoegle som v1 (matcher Play Console upload-key)
+            val ks = file("wromble-upload.keystore")
+            if (ks.exists()) {
+                storeFile = ks
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            val upload = signingConfigs.getByName("upload")
+            if (upload.storeFile != null) signingConfig = upload
         }
     }
     compileOptions {

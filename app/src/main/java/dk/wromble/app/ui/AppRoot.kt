@@ -35,6 +35,7 @@ fun AppRoot() {
             val oid = entry.arguments?.getString("orderId")?.toIntOrNull() ?: 0
             TrackingScreen(nav, oid)
         }
+        composable("wromble-plus") { WromblePlusScreen(nav) }
         composable("driver") { DriverDashboardScreen(nav) }
         composable("company") { CompanyDashboardScreen(nav) }
     }

@@ -103,8 +103,8 @@ interface WrombleApi {
     @POST("api/chat-upload.php")
     suspend fun chatUpload(
         @Part("conversation_id") conversationId: RequestBody,
-        @Part("sender_id") senderId: RequestBody,
         @Part("sender_type") senderType: RequestBody,
+        @Part("sender_name") senderName: RequestBody,
         @Part file: MultipartBody.Part
     ): SimpleResponse
 }

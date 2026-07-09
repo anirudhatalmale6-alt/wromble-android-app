@@ -9,3 +9,5 @@
 .externalNativeBuild
 .cxx
 *.apk
+
+/app/wromble-upload.keystore

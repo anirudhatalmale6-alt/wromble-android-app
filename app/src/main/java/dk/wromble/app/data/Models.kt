@@ -160,7 +160,10 @@ data class ChatStartResponse(
     @SerializedName("conversation_id") val conversationId: Int? = null,
     val error: String? = null
 )
-data class ChatPollResponse(val messages: List<ChatMessage> = emptyList())
+data class ChatPollResponse(
+    val status: String = "open",
+    val messages: List<ChatMessage> = emptyList()
+)
 data class SimpleResponse(val success: Boolean = false, val error: String? = null, val message: String? = null)
 
 // Cart (client-side only)
