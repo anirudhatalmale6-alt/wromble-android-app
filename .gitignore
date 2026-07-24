@@ -11,3 +11,6 @@
 *.apk
 
 /app/wromble-upload.keystore
+/upload-keystore.jks
+/upload_certificate.pem
+/app/wromble-upload.keystore

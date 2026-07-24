@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dk.wromble.app.data.Session
+import dk.wromble.app.data.Settings
 import dk.wromble.app.ui.brandGradient
 import kotlinx.coroutines.delay
 
@@ -33,6 +34,7 @@ fun SplashScreen(nav: NavController) {
         // Route by saved session
         val u = Session.user
         val dest = when {
+            !Settings.onboardingDone -> "onboarding"
             u == null -> "login"
             u.type == "company" -> "company"
             u.role == "chauffør" || u.role == "chauffoer" || u.type == "rider" -> "driver"

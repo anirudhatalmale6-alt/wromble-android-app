@@ -4,6 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -57,6 +60,36 @@ fun NetworkImage(
             modifier = modifier,
             contentScale = contentScale
         )
+    }
+}
+
+@Composable
+fun QtyStepper(qty: Int, onMinus: () -> Unit, onPlus: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        FilledIconButton(
+            onClick = onMinus, modifier = Modifier.size(34.dp),
+            colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color(0xFFEDEDF0))
+        ) {
+            Icon(Icons.Filled.Remove, "-", tint = Color.Black, modifier = Modifier.size(18.dp))
+        }
+        Text("$qty", Modifier.padding(horizontal = 12.dp), fontWeight = FontWeight.Bold)
+        FilledIconButton(
+            onClick = onPlus, modifier = Modifier.size(34.dp),
+            colors = IconButtonDefaults.filledIconButtonColors(containerColor = WrombleRed)
+        ) {
+            Icon(Icons.Filled.Add, "+", tint = Color.White, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+@Composable
+fun ChoiceChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.clip(RoundedCornerShape(12.dp))
+            .background(if (selected) WrombleRed else Color(0xFFEDEDF0))
+            .clickableNoRipple(onClick).padding(horizontal = 20.dp, vertical = 10.dp)
+    ) {
+        Text(label, color = if (selected) Color.White else Color(0xFF444444), fontWeight = FontWeight.SemiBold)
     }
 }
 

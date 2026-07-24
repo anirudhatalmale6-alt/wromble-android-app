@@ -166,6 +166,15 @@ fun LoginScreen(nav: NavController) {
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().clickableNoRipple { isLogin = !isLogin; error = "" }
                     )
+                    Spacer(Modifier.height(14.dp))
+                    OutlinedButton(
+                        onClick = {
+                            Session.user = dk.wromble.app.data.UserProfile(id = 0, name = "Gæst", type = "guest")
+                            nav.navigate("main") { popUpTo("login") { inclusive = true } }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(14.dp)
+                    ) { Text("Fortsæt uden login", color = WrombleRed, fontWeight = FontWeight.SemiBold) }
                 } else {
                     Spacer(Modifier.height(16.dp))
                     Text(

@@ -1,5 +1,9 @@
 package dk.wromble.app.ui.screens
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,8 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,15 +19,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dk.wromble.app.data.*
+import dk.wromble.app.ui.ChoiceChip
 import dk.wromble.app.ui.MainViewModel
+import dk.wromble.app.ui.QtyStepper
 import dk.wromble.app.ui.clickableNoRipple
 import dk.wromble.app.ui.kr
 import dk.wromble.app.ui.theme.WrombleRed
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,14 +43,42 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
     var isDelivery by remember { mutableStateOf(true) }
     var address by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
-    var payment by remember { mutableStateOf("Kontant ved levering") }
+    var payment by remember { mutableStateOf(2) } // 1 = online, 2 = kontanter
+    var scheduleLater by remember { mutableStateOf(false) }
+    var wantedTime by remember { mutableStateOf(Calendar.getInstance().apply { add(Calendar.HOUR_OF_DAY, 1) }) }
+    var tip by remember { mutableStateOf(0) }
+    var customTip by remember { mutableStateOf("") }
     var ordering by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     var placedOrderId by remember { mutableStateOf<Int?>(null) }
 
+    val effectiveTip = if (isDelivery) (customTip.toIntOrNull() ?: tip) else 0
+
+    fun wantedLabel(): String {
+        if (!scheduleLater) return "Hurtigst muligt (ca. 1 time)"
+        val today = Calendar.getInstance()
+        val same = today.get(Calendar.YEAR) == wantedTime.get(Calendar.YEAR) &&
+            today.get(Calendar.DAY_OF_YEAR) == wantedTime.get(Calendar.DAY_OF_YEAR)
+        val fmt = SimpleDateFormat(if (same) "'kl.' HH:mm" else "d/M 'kl.' HH:mm", Locale("da", "DK"))
+        return fmt.format(wantedTime.time)
+    }
+
+    fun pickTime() {
+        val base = wantedTime
+        DatePickerDialog(ctx, { _, y, mo, d ->
+            TimePickerDialog(ctx, { _, h, mi ->
+                val c = Calendar.getInstance()
+                c.set(y, mo, d, h, mi, 0)
+                val min = Calendar.getInstance().apply { add(Calendar.HOUR_OF_DAY, 1) }
+                wantedTime = if (c.before(min)) min else c
+                scheduleLater = true
+            }, base.get(Calendar.HOUR_OF_DAY), base.get(Calendar.MINUTE), true).show()
+        }, base.get(Calendar.YEAR), base.get(Calendar.MONTH), base.get(Calendar.DAY_OF_MONTH)).show()
+    }
+
     fun placeOrder() {
         val user = Session.user
-        if (user == null) { error = "Du skal vaere logget ind"; return }
+        if (user == null || user.id == 0) { error = "Du skal være logget ind for at bestille"; return }
         if (Cart.items.isEmpty()) return
         if (isDelivery && address.isBlank()) { error = "Indtast leveringsadresse"; return }
         error = ""; ordering = true
@@ -56,22 +92,35 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                     "delivery_check" to if (isDelivery) 1 else 0,
                     "payment_method" to payment,
                     "delivery_address" to address,
+                    "wanted_time" to wantedLabel(),
+                    "wanted_ts" to if (scheduleLater) (wantedTime.timeInMillis / 1000).toInt() else 0,
                     "items" to Cart.items.map { mapOf("id" to it.id, "quantity" to it.quantity) }
                 ))
                 ordering = false
                 if (resp.error != null) { error = resp.error; return@launch }
                 if (resp.orderId != null) {
                     placedOrderId = resp.orderId
+                    Notifier.notify(ctx, resp.orderId, "Ordre modtaget", "Ordre #${resp.orderId} er sendt til restauranten")
                     Cart.clear()
                 }
-            } catch (e: Exception) { ordering = false; error = "Netvaerksfejl. Proev igen." }
+            } catch (e: Exception) { ordering = false; error = "Netværksfejl. Prøv igen." }
         }
     }
 
     if (placedOrderId != null) {
-        OrderConfirmation(placedOrderId!!) {
-            nav.navigate("tracking/${placedOrderId}") { popUpTo("main") }
-        }
+        OrderConfirmation(placedOrderId!!, tipAmount = effectiveTip,
+            onTip = { oid, amount ->
+                scope.launch {
+                    try {
+                        val r = Api.service.tipCheckout(mapOf(
+                            "amount" to amount, "recipient_type" to "rider",
+                            "recipient_id" to 0, "order_id" to oid,
+                            "label" to "Drikkepenge til chaufføren"))
+                        r.checkoutUrl?.let { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
+                    } catch (_: Exception) {}
+                }
+            },
+            onTrack = { nav.navigate("tracking/${placedOrderId}") { popUpTo("main") } })
         return
     }
 
@@ -91,9 +140,15 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
             if (Cart.items.isNotEmpty()) {
                 Surface(shadowElevation = 12.dp, color = MaterialTheme.colorScheme.surface) {
                     Column(Modifier.padding(16.dp)) {
+                        if (effectiveTip > 0) {
+                            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+                                Text("Drikkepenge", color = Color(0xFF8A8A90))
+                                Text("+ ${effectiveTip},00 kr", color = Color(0xFF8A8A90))
+                            }
+                        }
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                             Text("Total", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            Text(kr(Cart.total), fontSize = 18.sp, fontWeight = FontWeight.Black, color = WrombleRed)
+                            Text(kr(Cart.total + effectiveTip), fontSize = 18.sp, fontWeight = FontWeight.Black, color = WrombleRed)
                         }
                         Spacer(Modifier.height(10.dp))
                         Button(
@@ -151,22 +206,42 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = WrombleRed, focusedLabelColor = WrombleRed))
             }
 
+            // Time
+            Spacer(Modifier.height(16.dp))
+            Text("Tidspunkt", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ChoiceChip("Hurtigst muligt", !scheduleLater) { scheduleLater = false }
+                ChoiceChip(if (scheduleLater) wantedLabel() else "Vælg tid", scheduleLater) { pickTime() }
+            }
+
+            // Tips (delivery only)
+            if (isDelivery) {
+                Spacer(Modifier.height(16.dp))
+                Text("Drikkepenge til chaufføren", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(0, 10, 20, 30).forEach { amount ->
+                        ChoiceChip(if (amount == 0) "Ingen" else "$amount kr",
+                            tip == amount && customTip.isBlank()) { tip = amount; customTip = "" }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(customTip, { customTip = it.filter { c -> c.isDigit() } },
+                    label = { Text("Andet beløb (kr)") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = WrombleRed, focusedLabelColor = WrombleRed))
+            }
+
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(note, { note = it }, label = { Text("Bemaerkning (valgfri)") },
+            OutlinedTextField(note, { note = it }, label = { Text("Bemærkning (valgfri)") },
                 modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = WrombleRed, focusedLabelColor = WrombleRed))
 
             Spacer(Modifier.height(16.dp))
             Text("Betaling", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Column(Modifier.padding(top = 8.dp)) {
-                listOf("Kontant ved levering", "MobilePay", "Kort").forEach { m ->
-                    Row(Modifier.fillMaxWidth().clickableNoRipple { payment = m }.padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = payment == m, onClick = { payment = m },
-                            colors = RadioButtonDefaults.colors(selectedColor = WrombleRed))
-                        Text(m)
-                    }
-                }
+                PaymentRow("Kontanter", payment == 2) { payment = 2 }
+                PaymentRow("Online betaling (Kort · MobilePay)", payment == 1) { payment = 1 }
             }
 
             if (error.isNotEmpty()) {
@@ -179,44 +254,43 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
 }
 
 @Composable
-private fun QtyStepper(qty: Int, onMinus: () -> Unit, onPlus: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        FilledIconButton(onClick = onMinus, modifier = Modifier.size(34.dp),
-            colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color(0xFFEDEDF0))) {
-            Icon(Icons.Filled.Remove, "-", tint = Color.Black, modifier = Modifier.size(18.dp))
-        }
-        Text("$qty", Modifier.padding(horizontal = 12.dp), fontWeight = FontWeight.Bold)
-        FilledIconButton(onClick = onPlus, modifier = Modifier.size(34.dp),
-            colors = IconButtonDefaults.filledIconButtonColors(containerColor = WrombleRed)) {
-            Icon(Icons.Filled.Add, "+", tint = Color.White, modifier = Modifier.size(18.dp))
-        }
+private fun PaymentRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickableNoRipple(onClick).padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        RadioButton(selected = selected, onClick = onClick,
+            colors = RadioButtonDefaults.colors(selectedColor = WrombleRed))
+        Text(label)
     }
 }
 
 @Composable
-private fun ChoiceChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        Modifier.clip(RoundedCornerShape(12.dp))
-            .background(if (selected) WrombleRed else Color(0xFFEDEDF0))
-            .clickableNoRipple(onClick).padding(horizontal = 20.dp, vertical = 10.dp)
-    ) {
-        Text(label, color = if (selected) Color.White else Color(0xFF444), fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun OrderConfirmation(orderId: Int, onTrack: () -> Unit) {
+private fun OrderConfirmation(orderId: Int, tipAmount: Int, onTip: (Int, Int) -> Unit, onTrack: () -> Unit) {
+    var tipOpened by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
             Text("🎉", fontSize = 64.sp)
             Spacer(Modifier.height(12.dp))
-            Text("Tak for din bestilling!", fontSize = 24.sp, fontWeight = FontWeight.Black)
+            Text("Ordre modtaget!", fontSize = 24.sp, fontWeight = FontWeight.Black)
             Text("Ordre #$orderId er modtaget", color = Color(0xFF8A8A90), fontSize = 15.sp)
             Spacer(Modifier.height(24.dp))
-            Button(onClick = onTrack, shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = WrombleRed),
-                modifier = Modifier.height(52.dp)) {
-                Text("Foelg din ordre", fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp))
+            if (tipAmount >= 1 && !tipOpened) {
+                Button(onClick = { tipOpened = true; onTip(orderId, tipAmount) },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = WrombleRed),
+                    modifier = Modifier.height(52.dp).fillMaxWidth()) {
+                    Text("Betal drikkepenge nu ($tipAmount kr)", fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(onClick = onTrack, shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.height(52.dp).fillMaxWidth()) {
+                    Text("Følg din ordre", fontWeight = FontWeight.Bold, color = WrombleRed)
+                }
+            } else {
+                Button(onClick = onTrack, shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = WrombleRed),
+                    modifier = Modifier.height(52.dp)) {
+                    Text("Følg din ordre", fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp))
+                }
             }
         }
     }

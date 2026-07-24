@@ -1,5 +1,6 @@
 package dk.wromble.app.ui
 
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -16,6 +17,26 @@ class MainViewModel : ViewModel() {
     val categories = mutableStateListOf<ProductCat>()
     var loadingHome by mutableStateOf(false)
     var homeError by mutableStateOf<String?>(null)
+
+    // User location (for distance sort)
+    var userLat by mutableStateOf(0.0)
+    var userLng by mutableStateOf(0.0)
+
+    fun refreshLocation(ctx: Context) {
+        val loc = LocationProvider.lastKnown(ctx) ?: return
+        userLat = loc.latitude
+        userLng = loc.longitude
+    }
+
+    fun restaurantsSorted(): List<Restaurant> {
+        if (userLat == 0.0 && userLng == 0.0) return restaurants
+        return restaurants.sortedBy { distanceKm(userLat, userLng, it.lat, it.lng) }
+    }
+
+    fun distanceTo(r: Restaurant): Double {
+        if (userLat == 0.0 && userLng == 0.0) return Double.MAX_VALUE
+        return distanceKm(userLat, userLng, r.lat, r.lng)
+    }
 
     // Current menu
     val menuCategories = mutableStateListOf<MenuCategory>()
