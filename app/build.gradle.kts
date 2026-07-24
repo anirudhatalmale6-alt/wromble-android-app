@@ -19,13 +19,14 @@ android {
 
     signingConfigs {
         create("upload") {
-            // Ny dedikeret upload-noegle (registreret hos Play via upload-key reset, PEM)
-            val ks = file("wromble-upload.keystore")
+            // Registreret upload-noegle for com.wromble.order (Play kraever SHA1 61:3F:84...),
+            // samme noegle som den oprindelige app blev signeret med (alias wromble-key).
+            val ks = file("wromble-release.keystore")
             if (ks.exists()) {
                 storeFile = ks
-                storePassword = "Wromble!Upload2026"
-                keyAlias = "upload"
-                keyPassword = "Wromble!Upload2026"
+                storePassword = "Wromble2024Release"
+                keyAlias = "wromble-key"
+                keyPassword = "Wromble2024Release"
             }
         }
     }

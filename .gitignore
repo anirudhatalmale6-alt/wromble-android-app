@@ -14,3 +14,4 @@
 /upload-keystore.jks
 /upload_certificate.pem
 /app/wromble-upload.keystore
+/app/wromble-release.keystore
