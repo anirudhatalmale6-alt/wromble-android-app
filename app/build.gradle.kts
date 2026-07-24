@@ -1,18 +1,17 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("app.cash.paparazzi")
 }
 
 android {
     namespace = "dk.wromble.app"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.wromble.order"
         minSdk = 24
-        targetSdk = 34
-        versionCode = 4
+        targetSdk = 35
+        versionCode = 5
         versionName = "2.0.0"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -55,13 +54,8 @@ android {
     }
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
-    }
-}
-
-configurations.all {
-    resolutionStrategy {
-        // Paparazzi 1.3.3 + AGP 8.1 pull conflicting Guava; layoutlib needs >=31 (toImmutableEnumSet)
-        force("com.google.guava:guava:31.1-jre")
+        // 16 KB-sidestoerrelse: udpak native libs saa de kan laegges 16KB-justeret (Android 15+ krav)
+        jniLibs { useLegacyPackaging = false }
     }
 }
 
@@ -97,11 +91,11 @@ dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.18")
 
     // QR-scanner (CameraX + ML Kit barcode)
-    implementation("androidx.camera:camera-core:1.3.4")
-    implementation("androidx.camera:camera-camera2:1.3.4")
-    implementation("androidx.camera:camera-lifecycle:1.3.4")
-    implementation("androidx.camera:camera-view:1.3.4")
-    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+    implementation("androidx.camera:camera-core:1.4.2")
+    implementation("androidx.camera:camera-camera2:1.4.2")
+    implementation("androidx.camera:camera-lifecycle:1.4.2")
+    implementation("androidx.camera:camera-view:1.4.2")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
 
     // Biometrisk app-laas (Face/fingeraftryk)
     implementation("androidx.biometric:biometric:1.1.0")
