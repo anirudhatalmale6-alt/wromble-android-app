@@ -2,7 +2,9 @@ package dk.wromble.app.ui.screens
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.content.Context
 import android.content.Intent
+import android.location.Geocoder
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -11,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,10 +33,27 @@ import dk.wromble.app.ui.QtyStepper
 import dk.wromble.app.ui.clickableNoRipple
 import dk.wromble.app.ui.kr
 import dk.wromble.app.ui.theme.WrombleRed
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+
+// Omvendt geokodning: enhedens position -> "Vej 12, 2200 By" (kaldes paa IO-traad)
+private fun reverseGeocode(ctx: Context, lat: Double, lng: Double): String {
+    if (lat == 0.0 && lng == 0.0) return ""
+    return try {
+        @Suppress("DEPRECATION")
+        val res = Geocoder(ctx, Locale("da", "DK")).getFromLocation(lat, lng, 1)
+        res?.firstOrNull()?.let { a ->
+            listOfNotNull(
+                listOfNotNull(a.thoroughfare, a.subThoroughfare).joinToString(" ").trim().ifBlank { null },
+                listOfNotNull(a.postalCode, a.locality).joinToString(" ").trim().ifBlank { null }
+            ).joinToString(", ")
+        } ?: ""
+    } catch (_: Exception) { "" }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +73,30 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
     var placedOrderId by remember { mutableStateOf<Int?>(null) }
 
     val effectiveTip = if (isDelivery) (customTip.toIntOrNull() ?: tip) else 0
+
+    // Auto-udfyld leveringsadressen: brug brugerens gemte profiladresse,
+    // ellers omvendt-geokod enhedens position. Kun hvis feltet er tomt.
+    LaunchedEffect(Unit) {
+        if (address.isNotBlank()) return@LaunchedEffect
+        val uid = Session.user?.id ?: 0
+        if (uid > 0) {
+            try {
+                val p = Api.service.userProfile(uid).profile
+                if (p != null) {
+                    val line = listOfNotNull(
+                        p.adress.trim().ifBlank { null },
+                        listOf(p.zipcode.trim(), p.city.trim()).filter { it.isNotEmpty() }
+                            .joinToString(" ").ifBlank { null }
+                    ).joinToString(", ")
+                    if (line.isNotBlank() && address.isBlank()) address = line
+                }
+            } catch (_: Exception) {}
+        }
+        if (address.isBlank()) {
+            val geo = withContext(Dispatchers.IO) { reverseGeocode(ctx, vm.userLat, vm.userLng) }
+            if (geo.isNotBlank() && address.isBlank()) address = geo
+        }
+    }
 
     fun wantedLabel(): String {
         if (!scheduleLater) return "Hurtigst muligt (ca. 1 time)"
@@ -204,6 +248,17 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                 OutlinedTextField(address, { address = it }, label = { Text("Leveringsadresse") },
                     modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = WrombleRed, focusedLabelColor = WrombleRed))
+                TextButton(onClick = {
+                    scope.launch {
+                        val geo = withContext(Dispatchers.IO) { reverseGeocode(ctx, vm.userLat, vm.userLng) }
+                        if (geo.isNotBlank()) address = geo
+                        else error = "Kunne ikke finde din placering – tjek at placering er slået til"
+                    }
+                }, contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)) {
+                    Icon(Icons.Filled.MyLocation, null, tint = WrombleRed, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Brug min placering", color = WrombleRed, fontSize = 13.sp)
+                }
             }
 
             // Time
