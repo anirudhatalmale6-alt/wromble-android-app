@@ -3,9 +3,7 @@ package dk.wromble.app.ui.screens
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
-import android.content.Intent
 import android.location.Geocoder
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -142,7 +140,10 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                 val resp = Api.service.placeOrder(mapOf(
                     "user_id" to user.id,
                     "company_id" to Cart.restaurantId,
-                    "total" to Cart.total,
+                    // Drikkepenge laegges oven i totalen og betales via ordrens metode
+                    // (kontant = kontant til chaufføren, online = samme sted som ordren).
+                    "total" to Cart.total + effectiveTip,
+                    "tip" to effectiveTip,
                     "note" to note,
                     "delivery_check" to if (isDelivery) 1 else 0,
                     "payment_method" to payment,
@@ -163,18 +164,7 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
     }
 
     if (placedOrderId != null) {
-        OrderConfirmation(placedOrderId!!, tipAmount = effectiveTip,
-            onTip = { oid, amount ->
-                scope.launch {
-                    try {
-                        val r = Api.service.tipCheckout(mapOf(
-                            "amount" to amount, "recipient_type" to "rider",
-                            "recipient_id" to 0, "order_id" to oid,
-                            "label" to "Drikkepenge til chaufføren"))
-                        r.checkoutUrl?.let { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
-                    } catch (_: Exception) {}
-                }
-            },
+        OrderConfirmation(placedOrderId!!, tipAmount = effectiveTip, isCash = payment == 2,
             onTrack = { nav.navigate("tracking/${placedOrderId}") { popUpTo("main") } })
         return
     }
@@ -384,33 +374,27 @@ private fun PaymentRow(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun OrderConfirmation(orderId: Int, tipAmount: Int, onTip: (Int, Int) -> Unit, onTrack: () -> Unit) {
-    var tipOpened by remember { mutableStateOf(false) }
+private fun OrderConfirmation(orderId: Int, tipAmount: Int, isCash: Boolean, onTrack: () -> Unit) {
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
             Text("🎉", fontSize = 64.sp)
             Spacer(Modifier.height(12.dp))
             Text("Ordre modtaget!", fontSize = 24.sp, fontWeight = FontWeight.Black)
             Text("Ordre #$orderId er modtaget", color = Color(0xFF8A8A90), fontSize = 15.sp)
+            if (tipAmount >= 1) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (isCash) "Drikkepenge ($tipAmount kr) betales kontant til chaufføren"
+                    else "Drikkepenge ($tipAmount kr) er lagt oven i din betaling",
+                    color = Color(0xFF8A8A90), fontSize = 14.sp,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+            }
             Spacer(Modifier.height(24.dp))
-            if (tipAmount >= 1 && !tipOpened) {
-                Button(onClick = { tipOpened = true; onTip(orderId, tipAmount) },
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = WrombleRed),
-                    modifier = Modifier.height(52.dp).fillMaxWidth()) {
-                    Text("Betal drikkepenge nu ($tipAmount kr)", fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.height(12.dp))
-                OutlinedButton(onClick = onTrack, shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.height(52.dp).fillMaxWidth()) {
-                    Text("Følg din ordre", fontWeight = FontWeight.Bold, color = WrombleRed)
-                }
-            } else {
-                Button(onClick = onTrack, shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = WrombleRed),
-                    modifier = Modifier.height(52.dp)) {
-                    Text("Følg din ordre", fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp))
-                }
+            Button(onClick = onTrack, shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = WrombleRed),
+                modifier = Modifier.height(52.dp).fillMaxWidth()) {
+                Text("Følg din ordre", fontWeight = FontWeight.Bold)
             }
         }
     }

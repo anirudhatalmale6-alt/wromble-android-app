@@ -130,20 +130,24 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
                 }
             }
 
-            // Map with pins
+            // Map with pins. Kortet er "nice-to-have" – hvis osmdroid af en eller anden
+            // grund ikke kan initialiseres, springer vi kortet over i stedet for at crashe
+            // hele sporingsskaermen.
             val s = status
-            if (s != null && (s.companyLat != 0.0 || s.customerLat != 0.0)) {
+            val mapView = remember { runCatching { newMapView(ctx) }.getOrNull() }
+            if (mapView != null && s != null && (s.companyLat != 0.0 || s.customerLat != 0.0)) {
                 Spacer(Modifier.height(16.dp))
-                val mapView = remember { newMapView(ctx) }
                 DisposableEffect(Unit) { mapView.onResume(); onDispose { mapView.onPause() } }
                 LaunchedEffect(s.companyLat, s.customerLat) {
-                    mapView.overlays.clear()
-                    mapView.addPin(s.companyLat, s.companyLng, s.companyName, WrombleRedInt)
-                    if (s.isDelivery) mapView.addPin(s.customerLat, s.customerLng, "Din adresse", BlueInt)
-                    val center = if (s.companyLat != 0.0) GeoPoint(s.companyLat, s.companyLng)
-                    else GeoPoint(s.customerLat, s.customerLng)
-                    mapView.controller.setCenter(center)
-                    mapView.invalidate()
+                    runCatching {
+                        mapView.overlays.clear()
+                        mapView.addPin(s.companyLat, s.companyLng, s.companyName, WrombleRedInt)
+                        if (s.isDelivery) mapView.addPin(s.customerLat, s.customerLng, "Din adresse", BlueInt)
+                        val center = if (s.companyLat != 0.0) GeoPoint(s.companyLat, s.companyLng)
+                        else GeoPoint(s.customerLat, s.customerLng)
+                        mapView.controller.setCenter(center)
+                        mapView.invalidate()
+                    }
                 }
                 AndroidView(factory = { mapView },
                     modifier = Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(16.dp)))

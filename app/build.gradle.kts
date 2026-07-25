@@ -11,8 +11,8 @@ android {
         applicationId = "com.wromble.order"
         minSdk = 24
         targetSdk = 36
-        versionCode = 10
-        versionName = "2.0.4"
+        versionCode = 11
+        versionName = "2.0.5"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -32,9 +32,11 @@ android {
 
     buildTypes {
         release {
-            // R8 kode-optimering + shrink (fjerner Play "Appoptimering: Lav")
+            // R8 kode-optimering beholdes (giver Play-optimeringsscore + mapping-fil).
+            // Ressource-shrink slaaet FRA: undgaar risiko for at fjerne ressourcer som
+            // fx osmdroid-kortet bruger paa runtime (stabilitet > minimal stoerrelse).
             isMinifyEnabled = true
-            isShrinkResources = true
+            isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Native fejlretningssymboler bygges ind (fjerner symbolfil-advarslen)
             ndk { debugSymbolLevel = "FULL" }
