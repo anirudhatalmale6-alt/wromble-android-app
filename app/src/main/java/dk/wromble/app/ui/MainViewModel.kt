@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dk.wromble.app.data.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainViewModel : ViewModel() {
@@ -50,16 +51,31 @@ class MainViewModel : ViewModel() {
         loadingHome = true
         homeError = null
         viewModelScope.launch {
+            // Spisesteder (vigtigst): forsøg op til 3 gange ved en kortvarig
+            // netvaerks-/serverhikke, saa forsiden ikke ender tom paa grund af
+            // ét mislykket kald. Tidligere data bevares indtil et nyt hentes.
+            var loaded = false
+            var attempt = 0
+            while (!loaded && attempt < 3) {
+                try {
+                    val r = Api.service.restaurants()
+                    restaurants.clear(); restaurants.addAll(r.restaurants)
+                    loaded = true
+                } catch (_: Exception) {
+                    attempt++
+                    if (attempt < 3) delay(700L * attempt)
+                }
+            }
+            homeError = if (loaded || restaurants.isNotEmpty()) null
+                        else "Kunne ikke hente data. Tjek forbindelsen."
+
+            // Kategorier (sekundaert): best effort – maa aldrig blokere spisestederne.
             try {
-                val r = Api.service.restaurants()
-                restaurants.clear(); restaurants.addAll(r.restaurants)
                 val c = Api.service.homeCategories()
                 categories.clear(); categories.addAll(c.categories)
-            } catch (e: Exception) {
-                homeError = "Kunne ikke hente data. Tjek forbindelsen."
-            } finally {
-                loadingHome = false
-            }
+            } catch (_: Exception) {}
+
+            loadingHome = false
         }
     }
 

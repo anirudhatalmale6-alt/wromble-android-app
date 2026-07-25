@@ -11,8 +11,8 @@ android {
         applicationId = "com.wromble.order"
         minSdk = 24
         targetSdk = 36
-        versionCode = 12
-        versionName = "2.0.6"
+        versionCode = 13
+        versionName = "2.0.7"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -32,14 +32,14 @@ android {
 
     buildTypes {
         release {
-            // R8 kode-optimering beholdes (giver Play-optimeringsscore + mapping-fil).
-            // Ressource-shrink slaaet FRA: undgaar risiko for at fjerne ressourcer som
-            // fx osmdroid-kortet bruger paa runtime (stabilitet > minimal stoerrelse).
-            isMinifyEnabled = true
+            // R8/minify slaaet FRA: R8 "full mode" fjernede de generiske signaturer som
+            // Retrofit skal bruge til sine suspend-kald -> alle API-kald fejlede paa enheden
+            // ("Kunne ikke hente data"). Uden minify virker net-laget garanteret (som i den
+            // oprindelige build). Ingen native kode laengere (ZXing), saa native-advarslen er
+            // stadig vaek. Optimerings-advarslen er kun vejledende og blokerer ikke udgivelse.
+            isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Ingen native kode i appen laengere (QR-scanner er nu ren Java/ZXing),
-            // saa der er ingen native symboler at bygge ind – advarslen er vaek.
             val upload = signingConfigs.getByName("upload")
             if (upload.storeFile != null) signingConfig = upload
         }
