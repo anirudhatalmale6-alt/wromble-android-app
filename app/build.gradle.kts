@@ -11,8 +11,8 @@ android {
         applicationId = "com.wromble.order"
         minSdk = 24
         targetSdk = 36
-        versionCode = 8
-        versionName = "2.0.2"
+        versionCode = 9
+        versionName = "2.0.3"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -32,8 +32,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 kode-optimering + shrink (fjerner Play "Appoptimering: Lav")
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Native fejlretningssymboler bygges ind (fjerner symbolfil-advarslen)
+            ndk { debugSymbolLevel = "FULL" }
             val upload = signingConfigs.getByName("upload")
             if (upload.storeFile != null) signingConfig = upload
         }
