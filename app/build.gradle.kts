@@ -11,8 +11,8 @@ android {
         applicationId = "com.wromble.order"
         minSdk = 24
         targetSdk = 36
-        versionCode = 11
-        versionName = "2.0.5"
+        versionCode = 12
+        versionName = "2.0.6"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -38,8 +38,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Native fejlretningssymboler bygges ind (fjerner symbolfil-advarslen)
-            ndk { debugSymbolLevel = "FULL" }
+            // Ingen native kode i appen laengere (QR-scanner er nu ren Java/ZXing),
+            // saa der er ingen native symboler at bygge ind – advarslen er vaek.
             val upload = signingConfigs.getByName("upload")
             if (upload.storeFile != null) signingConfig = upload
         }
@@ -96,12 +96,9 @@ dependencies {
     // Maps (OpenStreetMap – ingen API-noegle noedvendig)
     implementation("org.osmdroid:osmdroid-android:6.1.18")
 
-    // QR-scanner (CameraX + ML Kit barcode)
-    implementation("androidx.camera:camera-core:1.4.2")
-    implementation("androidx.camera:camera-camera2:1.4.2")
-    implementation("androidx.camera:camera-lifecycle:1.4.2")
-    implementation("androidx.camera:camera-view:1.4.2")
-    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    // QR-scanner (ZXing – ren Java, INGEN native biblioteker, saa app-bundlen
+    // ikke laengere kraever native fejlretningssymboler = fjerner Play-advarslen)
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 
     // Biometrisk app-laas (Face/fingeraftryk)
     implementation("androidx.biometric:biometric:1.1.0")

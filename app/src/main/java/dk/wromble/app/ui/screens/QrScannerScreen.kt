@@ -5,12 +5,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalGetImage
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,20 +17,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.common.InputImage
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.ResultPoint
+import com.journeyapps.barcodescanner.BarcodeCallback
+import com.journeyapps.barcodescanner.BarcodeResult
+import com.journeyapps.barcodescanner.BarcodeView
+import com.journeyapps.barcodescanner.DefaultDecoderFactory
 import dk.wromble.app.data.Restaurant
 import dk.wromble.app.ui.MainViewModel
 import dk.wromble.app.ui.theme.WrombleRed
-import java.util.concurrent.Executors
 
 // Parse a scanned Wromble code -> (restaurant, table number or null)
 private fun matchScan(raw: String, restaurants: List<Restaurant>): Pair<Restaurant, Int?>? {
@@ -70,12 +65,10 @@ private fun matchScan(raw: String, restaurants: List<Restaurant>): Pair<Restaura
     return match?.let { it to table }
 }
 
-@androidx.annotation.OptIn(ExperimentalGetImage::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QrScannerScreen(nav: androidx.navigation.NavController, vm: MainViewModel, mode: String) {
     val ctx = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     var hasPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
@@ -106,42 +99,25 @@ fun QrScannerScreen(nav: androidx.navigation.NavController, vm: MainViewModel, m
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (hasPermission) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { c ->
-                    val previewView = PreviewView(c)
-                    val executor = Executors.newSingleThreadExecutor()
-                    val providerFuture = ProcessCameraProvider.getInstance(c)
-                    providerFuture.addListener({
-                        val provider = providerFuture.get()
-                        val preview = Preview.Builder().build().also {
-                            it.setSurfaceProvider(previewView.surfaceProvider)
-                        }
-                        val scanner = BarcodeScanning.getClient()
-                        val analysis = ImageAnalysis.Builder()
-                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                            .build()
-                        analysis.setAnalyzer(executor) { proxy ->
-                            val media = proxy.image
-                            if (media == null) { proxy.close(); return@setAnalyzer }
-                            val img = InputImage.fromMediaImage(media, proxy.imageInfo.rotationDegrees)
-                            scanner.process(img)
-                                .addOnSuccessListener { codes ->
-                                    codes.firstOrNull { it.valueType == Barcode.TYPE_URL || it.rawValue != null }
-                                        ?.rawValue?.let { raw ->
-                                            previewView.post { onScanned(raw) }
-                                        }
-                                }
-                                .addOnCompleteListener { proxy.close() }
-                        }
-                        provider.unbindAll()
-                        provider.bindToLifecycle(
-                            lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis
-                        )
-                    }, ContextCompat.getMainExecutor(c))
-                    previewView
+            // ZXing-baseret scanner (ren Java, ingen native kode) – erstatter tidligere
+            // ML Kit + CameraX, saa app-bundlen ikke laengere indeholder native biblioteker
+            // (fjerner Play-advarslen om manglende fejlretningssymboler).
+            val barcodeView = remember {
+                BarcodeView(ctx).apply {
+                    decoderFactory = DefaultDecoderFactory(listOf(BarcodeFormat.QR_CODE))
                 }
-            )
+            }
+            DisposableEffect(Unit) {
+                barcodeView.decodeContinuous(object : BarcodeCallback {
+                    override fun barcodeResult(result: BarcodeResult) {
+                        result.text?.let { onScanned(it) }
+                    }
+                    override fun possibleResultPoints(resultPoints: MutableList<ResultPoint>) {}
+                })
+                barcodeView.resume()
+                onDispose { barcodeView.pause() }
+            }
+            AndroidView(modifier = Modifier.fillMaxSize(), factory = { barcodeView })
             // dimmed scan window
             Box(
                 Modifier.align(Alignment.Center).size(240.dp)

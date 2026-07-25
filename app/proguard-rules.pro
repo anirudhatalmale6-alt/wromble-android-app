@@ -42,6 +42,12 @@
 -dontwarn kotlinx.coroutines.**
 -keep class kotlin.Metadata { *; }
 
+# --- ZXing QR-scanner (ren Java) ---
+-keep class com.google.zxing.** { *; }
+-keep class com.journeyapps.barcodescanner.** { *; }
+-dontwarn com.google.zxing.**
+-dontwarn com.journeyapps.barcodescanner.**
+
 # --- Ryd op i stoej fra valgfri afhaengigheder ---
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
