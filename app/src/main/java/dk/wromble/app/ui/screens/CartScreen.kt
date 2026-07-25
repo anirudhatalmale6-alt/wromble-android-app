@@ -7,12 +7,15 @@ import android.content.Intent
 import android.location.Geocoder
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,8 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +40,7 @@ import dk.wromble.app.ui.clickableNoRipple
 import dk.wromble.app.ui.kr
 import dk.wromble.app.ui.theme.WrombleRed
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -60,8 +67,12 @@ private fun reverseGeocode(ctx: Context, lat: Double, lng: Double): String {
 fun CartScreen(nav: NavController, vm: MainViewModel) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    val focus = LocalFocusManager.current
     var isDelivery by remember { mutableStateOf(true) }
     var address by remember { mutableStateOf("") }
+    // Adresse-forslag (DAWA) mens kunden skriver
+    var addrSuggestions by remember { mutableStateOf<List<AddressSuggestion>>(emptyList()) }
+    var addrEditing by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf("") }
     var payment by remember { mutableStateOf(2) } // 1 = online, 2 = kontanter
     var scheduleLater by remember { mutableStateOf(false) }
@@ -182,7 +193,9 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
         },
         bottomBar = {
             if (Cart.items.isNotEmpty()) {
-                Surface(shadowElevation = 12.dp, color = MaterialTheme.colorScheme.surface) {
+                // imePadding: loeft "Afgiv bestilling"-knappen op over tastaturet
+                // (appen er edge-to-edge, saa vinduet resizer ikke selv for IME)
+                Surface(Modifier.imePadding(), shadowElevation = 12.dp, color = MaterialTheme.colorScheme.surface) {
                     Column(Modifier.padding(16.dp)) {
                         if (effectiveTip > 0) {
                             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
@@ -217,7 +230,9 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
             return@Scaffold
         }
         Column(
-            Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState())
+            Modifier.fillMaxSize().padding(pad)
+                .pointerInput(Unit) { detectTapGestures(onTap = { focus.clearFocus() }) }
+                .verticalScroll(rememberScrollState())
                 .background(MaterialTheme.colorScheme.background).padding(16.dp)
         ) {
             Text(Cart.restaurantName, fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -245,13 +260,63 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
 
             if (isDelivery) {
                 Spacer(Modifier.height(12.dp))
-                OutlinedTextField(address, { address = it }, label = { Text("Leveringsadresse") },
+
+                // Hent adresse-forslag fra DAWA, debounced, mens kunden taster
+                LaunchedEffect(address) {
+                    if (!addrEditing) return@LaunchedEffect
+                    val q = address
+                    if (q.trim().length < 2) { addrSuggestions = emptyList(); return@LaunchedEffect }
+                    delay(250)
+                    if (q == address) addrSuggestions = AddressAutocomplete.suggest(q)
+                }
+
+                OutlinedTextField(address, { address = it; addrEditing = true },
+                    label = { Text("Leveringsadresse") },
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { focus.clearFocus() }),
+                    trailingIcon = {
+                        if (address.isNotBlank()) IconButton(onClick = {
+                            address = ""; addrSuggestions = emptyList(); addrEditing = true
+                        }) { Icon(Icons.Filled.Close, "Ryd") }
+                    },
                     modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = WrombleRed, focusedLabelColor = WrombleRed))
+
+                // Forslags-liste (tryk for at udfylde adressen)
+                if (addrSuggestions.isNotEmpty()) {
+                    Surface(
+                        Modifier.fillMaxWidth().padding(top = 4.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 3.dp
+                    ) {
+                        Column {
+                            addrSuggestions.forEach { s ->
+                                Row(
+                                    Modifier.fillMaxWidth().clickableNoRipple {
+                                        address = s.text
+                                        addrEditing = false
+                                        addrSuggestions = emptyList()
+                                        focus.clearFocus()   // luk tastaturet naar adressen er valgt
+                                    }.padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Filled.LocationOn, null, tint = WrombleRed,
+                                        modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(s.text, fontSize = 14.sp)
+                                }
+                                Divider(color = Color(0xFFEDEDF0))
+                            }
+                        }
+                    }
+                }
+
                 TextButton(onClick = {
                     scope.launch {
                         val geo = withContext(Dispatchers.IO) { reverseGeocode(ctx, vm.userLat, vm.userLng) }
-                        if (geo.isNotBlank()) address = geo
+                        if (geo.isNotBlank()) { address = geo; addrEditing = false; addrSuggestions = emptyList() }
                         else error = "Kunne ikke finde din placering – tjek at placering er slået til"
                     }
                 }, contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)) {
