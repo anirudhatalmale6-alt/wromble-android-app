@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,6 +38,16 @@ import dk.wromble.app.ui.theme.WrombleRed
 @Composable
 fun HomeScreen(nav: NavController, vm: MainViewModel) {
     val ctx = LocalContext.current
+    // Responsivt kolonneantal: tablets/brede skærme fylder hele bredden ud
+    // (i stedet for 2 store, udtværede felter) – giver skarpere billeder.
+    val screenW = LocalConfiguration.current.screenWidthDp
+    val productCols = when {
+        screenW >= 1000 -> 5
+        screenW >= 820  -> 4
+        screenW >= 600  -> 3
+        else            -> 2
+    }
+    val restaurantCols = if (screenW >= 600) 2 else 1
     var query by remember { mutableStateOf("") }
     var selectedCat by remember { mutableStateOf<String?>(null) } // null = Alle
 
@@ -168,19 +179,20 @@ fun HomeScreen(nav: NavController, vm: MainViewModel) {
                 if (catProducts.isEmpty()) {
                     item { EmptyNote("Ingen produkter i denne kategori endnu") }
                 } else {
-                    items(catProducts.chunked(2)) { pair ->
+                    items(catProducts.chunked(productCols)) { rowItems ->
                         Row(
                             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            pair.forEach { p ->
+                            rowItems.forEach { p ->
                                 Box(Modifier.weight(1f)) {
                                     ProductTileCard(p) {
                                         if (p.companyId != 0) nav.navigate("restaurant/${p.companyId}")
                                     }
                                 }
                             }
-                            if (pair.size == 1) Spacer(Modifier.weight(1f))
+                            // udfyld sidste række så felterne beholder samme bredde
+                            repeat(productCols - rowItems.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
                 }
@@ -204,12 +216,29 @@ fun HomeScreen(nav: NavController, vm: MainViewModel) {
                 if (!vm.loadingHome && sortedRestaurants.isEmpty()) {
                     item { EmptyNote("Ingen steder fundet") }
                 }
-                items(sortedRestaurants) { r ->
-                    RestaurantCard(r,
-                        distance = distanceLabel(vm.distanceTo(r)),
-                        onClick = { nav.navigate("restaurant/${r.id}") },
-                        onFav = { Favorites.toggle(ctx, r.id) },
-                        isFav = Favorites.isFavorite(r.id))
+                items(sortedRestaurants.chunked(restaurantCols)) { rowRest ->
+                    if (restaurantCols == 1) {
+                        val r = rowRest[0]
+                        RestaurantCard(r,
+                            distance = distanceLabel(vm.distanceTo(r)),
+                            onClick = { nav.navigate("restaurant/${r.id}") },
+                            onFav = { Favorites.toggle(ctx, r.id) },
+                            isFav = Favorites.isFavorite(r.id))
+                    } else {
+                        // tablet: to spisesteder side om side, fylder bredden ud
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                            rowRest.forEach { r ->
+                                Box(Modifier.weight(1f)) {
+                                    RestaurantCard(r,
+                                        distance = distanceLabel(vm.distanceTo(r)),
+                                        onClick = { nav.navigate("restaurant/${r.id}") },
+                                        onFav = { Favorites.toggle(ctx, r.id) },
+                                        isFav = Favorites.isFavorite(r.id))
+                                }
+                            }
+                            repeat(restaurantCols - rowRest.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
                 }
             }
             item { Spacer(Modifier.height(90.dp)) }
