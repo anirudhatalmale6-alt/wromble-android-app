@@ -45,19 +45,23 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-// Omvendt geokodning: enhedens position -> "Vej 12, 2200 By" (kaldes paa IO-traad)
-private fun reverseGeocode(ctx: Context, lat: Double, lng: Double): String {
-    if (lat == 0.0 && lng == 0.0) return ""
+// Omvendt geokodning: enhedens position -> strukturerede felter (vej, husnr, postnr, by).
+private data class GeoAddr(val street: String, val husnr: String, val zip: String, val city: String)
+
+private fun reverseGeocode(ctx: Context, lat: Double, lng: Double): GeoAddr? {
+    if (lat == 0.0 && lng == 0.0) return null
     return try {
         @Suppress("DEPRECATION")
-        val res = Geocoder(ctx, Locale("da", "DK")).getFromLocation(lat, lng, 1)
-        res?.firstOrNull()?.let { a ->
-            listOfNotNull(
-                listOfNotNull(a.thoroughfare, a.subThoroughfare).joinToString(" ").trim().ifBlank { null },
-                listOfNotNull(a.postalCode, a.locality).joinToString(" ").trim().ifBlank { null }
-            ).joinToString(", ")
-        } ?: ""
-    } catch (_: Exception) { "" }
+        val a = Geocoder(ctx, Locale("da", "DK")).getFromLocation(lat, lng, 1)?.firstOrNull()
+            ?: return null
+        val g = GeoAddr(
+            street = a.thoroughfare.orEmpty().trim(),
+            husnr = a.subThoroughfare.orEmpty().trim(),
+            zip = a.postalCode.orEmpty().trim(),
+            city = a.locality.orEmpty().trim()
+        )
+        if (g.street.isBlank() && g.zip.isBlank() && g.city.isBlank()) null else g
+    } catch (_: Exception) { null }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,10 +71,22 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     var isDelivery by remember { mutableStateOf(true) }
-    var address by remember { mutableStateOf("") }
+    // Struktureret leveringsadresse: vej, husnr, etage/dør, postnr, by
+    var address by remember { mutableStateOf("") }   // vejnavn (evt. inkl. nr fra placering)
+    var husnr by remember { mutableStateOf("") }
+    var floor by remember { mutableStateOf("") }
+    var zip by remember { mutableStateOf("") }
+    var city by remember { mutableStateOf("") }
     // Adresse-forslag (DAWA) mens kunden skriver
     var addrSuggestions by remember { mutableStateOf<List<AddressSuggestion>>(emptyList()) }
     var addrEditing by remember { mutableStateOf(false) }
+
+    // Samlet adresse-streng der sendes til backend/chauffør
+    fun composedAddress(): String {
+        val line1 = listOf(address.trim(), husnr.trim()).filter { it.isNotEmpty() }.joinToString(" ")
+        val cityLine = listOf(zip.trim(), city.trim()).filter { it.isNotEmpty() }.joinToString(" ")
+        return listOf(line1, floor.trim(), cityLine).filter { it.isNotEmpty() }.joinToString(", ")
+    }
     var note by remember { mutableStateOf("") }
     var payment by remember { mutableStateOf(2) } // 1 = online, 2 = kontanter
     var scheduleLater by remember { mutableStateOf(false) }
@@ -91,19 +107,21 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
         if (uid > 0) {
             try {
                 val p = Api.service.userProfile(uid).profile
-                if (p != null) {
-                    val line = listOfNotNull(
-                        p.adress.trim().ifBlank { null },
-                        listOf(p.zipcode.trim(), p.city.trim()).filter { it.isNotEmpty() }
-                            .joinToString(" ").ifBlank { null }
-                    ).joinToString(", ")
-                    if (line.isNotBlank() && address.isBlank()) address = line
+                if (p != null && address.isBlank()) {
+                    address = p.adress.trim()
+                    if (zip.isBlank()) zip = p.zipcode.trim()
+                    if (city.isBlank()) city = p.city.trim()
                 }
             } catch (_: Exception) {}
         }
-        if (address.isBlank()) {
+        if (address.isBlank() && zip.isBlank()) {
             val geo = withContext(Dispatchers.IO) { reverseGeocode(ctx, vm.userLat, vm.userLng) }
-            if (geo.isNotBlank() && address.isBlank()) address = geo
+            if (geo != null && address.isBlank()) {
+                address = geo.street
+                if (husnr.isBlank()) husnr = geo.husnr
+                if (zip.isBlank()) zip = geo.zip
+                if (city.isBlank()) city = geo.city
+            }
         }
     }
 
@@ -134,6 +152,7 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
         if (user == null || user.id == 0) { error = "Du skal være logget ind for at bestille"; return }
         if (Cart.items.isEmpty()) return
         if (isDelivery && address.isBlank()) { error = "Indtast leveringsadresse"; return }
+        val deliveryAddress = composedAddress()
         error = ""; ordering = true
         scope.launch {
             try {
@@ -147,7 +166,7 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                     "note" to note,
                     "delivery_check" to if (isDelivery) 1 else 0,
                     "payment_method" to payment,
-                    "delivery_address" to address,
+                    "delivery_address" to deliveryAddress,
                     "wanted_time" to wantedLabel(),
                     "wanted_ts" to if (scheduleLater) (wantedTime.timeInMillis / 1000).toInt() else 0,
                     "items" to Cart.items.map { mapOf("id" to it.id, "quantity" to it.quantity) }
@@ -251,7 +270,7 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
             if (isDelivery) {
                 Spacer(Modifier.height(12.dp))
 
-                // Hent adresse-forslag fra DAWA, debounced, mens kunden taster
+                // Hent adresse-forslag fra DAWA, debounced, mens kunden taster vejnavn
                 LaunchedEffect(address) {
                     if (!addrEditing) return@LaunchedEffect
                     val q = address
@@ -259,12 +278,19 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                     delay(250)
                     if (q == address) addrSuggestions = AddressAutocomplete.suggest(q)
                 }
+                // Auto-udfyld by naar postnr er 4 cifre og by-feltet er tomt
+                LaunchedEffect(zip) {
+                    if (zip.length == 4 && city.isBlank()) {
+                        val c = AddressAutocomplete.cityForPostnr(zip)
+                        if (c != null && city.isBlank()) city = c
+                    }
+                }
 
+                // Vej – DAWA-forslag udfylder husnr, postnr og by automatisk
                 OutlinedTextField(address, { address = it; addrEditing = true },
-                    label = { Text("Leveringsadresse") },
+                    label = { Text("Adresse (vej)") },
                     singleLine = true,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { focus.clearFocus() }),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Next),
                     trailingIcon = {
                         if (address.isNotBlank()) IconButton(onClick = {
                             address = ""; addrSuggestions = emptyList(); addrEditing = true
@@ -273,7 +299,7 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                     modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = WrombleRed, focusedLabelColor = WrombleRed))
 
-                // Forslags-liste (tryk for at udfylde adressen)
+                // Forslags-liste (tryk for at udfylde alle felter)
                 if (addrSuggestions.isNotEmpty()) {
                     Surface(
                         Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -285,7 +311,10 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                             addrSuggestions.forEach { s ->
                                 Row(
                                     Modifier.fillMaxWidth().clickableNoRipple {
-                                        address = s.text
+                                        address = s.vejnavn.ifBlank { s.text }
+                                        husnr = s.husnr
+                                        zip = s.postnr
+                                        city = s.postnrnavn
                                         addrEditing = false
                                         addrSuggestions = emptyList()
                                         focus.clearFocus()   // luk tastaturet naar adressen er valgt
@@ -303,11 +332,44 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                     }
                 }
 
+                Spacer(Modifier.height(8.dp))
+                // Husnr + etage/dør
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(husnr, { husnr = it },
+                        label = { Text("Husnr.") }, singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Next),
+                        modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = WrombleRed, focusedLabelColor = WrombleRed))
+                    OutlinedTextField(floor, { floor = it },
+                        label = { Text("Etage / dør (valgfri)") }, singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Next),
+                        modifier = Modifier.weight(1.5f), shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = WrombleRed, focusedLabelColor = WrombleRed))
+                }
+
+                Spacer(Modifier.height(8.dp))
+                // Postnr + by
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(zip, { zip = it.filter { c -> c.isDigit() }.take(4) },
+                        label = { Text("Postnr.") }, singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                        modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = WrombleRed, focusedLabelColor = WrombleRed))
+                    OutlinedTextField(city, { city = it },
+                        label = { Text("By") }, singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { focus.clearFocus() }),
+                        modifier = Modifier.weight(1.6f), shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = WrombleRed, focusedLabelColor = WrombleRed))
+                }
+
                 TextButton(onClick = {
                     scope.launch {
                         val geo = withContext(Dispatchers.IO) { reverseGeocode(ctx, vm.userLat, vm.userLng) }
-                        if (geo.isNotBlank()) { address = geo; addrEditing = false; addrSuggestions = emptyList() }
-                        else error = "Kunne ikke finde din placering – tjek at placering er slået til"
+                        if (geo != null) {
+                            address = geo.street; husnr = geo.husnr; zip = geo.zip; city = geo.city
+                            addrEditing = false; addrSuggestions = emptyList()
+                        } else error = "Kunne ikke finde din placering – tjek at placering er slået til"
                     }
                 }, contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)) {
                     Icon(Icons.Filled.MyLocation, null, tint = WrombleRed, modifier = Modifier.size(16.dp))

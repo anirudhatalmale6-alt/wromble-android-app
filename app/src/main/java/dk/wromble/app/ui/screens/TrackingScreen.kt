@@ -6,8 +6,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -130,27 +134,47 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
                 }
             }
 
-            // Map with pins. Kortet er "nice-to-have" – hvis osmdroid af en eller anden
-            // grund ikke kan initialiseres, springer vi kortet over i stedet for at crashe
-            // hele sporingsskaermen.
+            // Adresse-info + "Vis på kort". Vi åbner systemets kort-app (Google Maps/kort)
+            // via en geo:-intent i stedet for et indlejret kort. Det er 100% stabilt – der
+            // er intet indlejret kort-view der kan crashe sporingsskaermen, og kunden lander
+            // direkte i deres kort-app med ruten.
             val s = status
-            val mapView = remember { runCatching { newMapView(ctx) }.getOrNull() }
-            if (mapView != null && s != null && (s.companyLat != 0.0 || s.customerLat != 0.0)) {
-                Spacer(Modifier.height(16.dp))
-                DisposableEffect(Unit) { mapView.onResume(); onDispose { mapView.onPause() } }
-                LaunchedEffect(s.companyLat, s.customerLat) {
-                    runCatching {
-                        mapView.overlays.clear()
-                        mapView.addPin(s.companyLat, s.companyLng, s.companyName, WrombleRedInt)
-                        if (s.isDelivery) mapView.addPin(s.customerLat, s.customerLng, "Din adresse", BlueInt)
-                        val center = if (s.companyLat != 0.0) GeoPoint(s.companyLat, s.companyLng)
-                        else GeoPoint(s.customerLat, s.customerLng)
-                        mapView.controller.setCenter(center)
-                        mapView.invalidate()
+            if (s != null && s.companyAddress.isNotBlank()) {
+                Spacer(Modifier.height(20.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Place, null, tint = WrombleRed, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text("Afhentes hos", color = Color(0xFF8A8A90), fontSize = 12.sp)
+                        Text(s.companyName.ifBlank { "Restaurant" }, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Text(s.companyAddress, color = Color(0xFF6B6B72), fontSize = 13.sp)
                     }
                 }
-                AndroidView(factory = { mapView },
-                    modifier = Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(16.dp)))
+            }
+            if (s != null && (s.companyLat != 0.0 || s.customerLat != 0.0)) {
+                Spacer(Modifier.height(14.dp))
+                OutlinedButton(
+                    onClick = {
+                        runCatching {
+                            val lat: Double; val lng: Double; val label: String
+                            if (s.isDelivery && (s.customerLat != 0.0 || s.customerLng != 0.0)) {
+                                lat = s.customerLat; lng = s.customerLng; label = "Leveringsadresse"
+                            } else {
+                                lat = s.companyLat; lng = s.companyLng; label = s.companyName.ifBlank { "Restaurant" }
+                            }
+                            val enc = Uri.encode(label)
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$lat,$lng?q=$lat,$lng($enc)"))
+                            ctx.startActivity(intent)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Filled.LocationOn, null, tint = WrombleRed, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (s.isDelivery) "Vis leveringsadresse på kort" else "Vis restaurant på kort",
+                        color = WrombleRed, fontWeight = FontWeight.SemiBold)
+                }
             }
             Spacer(Modifier.height(24.dp))
         }

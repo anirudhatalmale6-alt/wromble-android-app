@@ -16,7 +16,12 @@ import org.json.JSONArray
 data class AddressSuggestion(
     val text: String,   // fx "Noerrebrogade 1, 2200 Koebenhavn N"
     val lat: Double,    // WGS84 (srid=4326)
-    val lng: Double
+    val lng: Double,
+    // Strukturerede dele saa kurven kan udfylde vej/husnr/postnr/by hver for sig
+    val vejnavn: String = "",
+    val husnr: String = "",
+    val postnr: String = "",
+    val postnrnavn: String = ""
 )
 
 object AddressAutocomplete {
@@ -56,12 +61,46 @@ object AddressAutocomplete {
                         // DAWA srid=4326: x = laengdegrad (lng), y = breddegrad (lat)
                         val lng = data?.optDouble("x", 0.0) ?: 0.0
                         val lat = data?.optDouble("y", 0.0) ?: 0.0
-                        out.add(AddressSuggestion(text, lat, lng))
+                        out.add(
+                            AddressSuggestion(
+                                text = text, lat = lat, lng = lng,
+                                vejnavn = data?.optString("vejnavn").orEmpty(),
+                                husnr = data?.optString("husnr").orEmpty(),
+                                postnr = data?.optString("postnr").orEmpty(),
+                                postnrnavn = data?.optString("postnrnavn").orEmpty()
+                            )
+                        )
                     }
                     out
                 }
             } catch (_: Exception) {
                 emptyList()
+            }
+        }
+    }
+
+    /**
+     * Slaar bynavnet op ud fra et 4-cifret postnummer (DAWA /postnumre/{nr}).
+     * Bruges til at auto-udfylde "By" naar kunden selv taster postnr.
+     * Returnerer null ved fejl/ukendt postnr.
+     */
+    suspend fun cityForPostnr(postnr: String): String? {
+        val nr = postnr.trim()
+        if (nr.length != 4 || nr.any { !it.isDigit() }) return null
+        return withContext(Dispatchers.IO) {
+            try {
+                val req = Request.Builder()
+                    .url("https://api.dataforsyningen.dk/postnumre/$nr")
+                    .header("User-Agent", "WrombleApp/1.0 (dk.wromble.app)")
+                    .build()
+                Http.client.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful) return@use null
+                    val body = resp.body?.string().orEmpty()
+                    if (body.isBlank()) return@use null
+                    org.json.JSONObject(body).optString("navn").ifBlank { null }
+                }
+            } catch (_: Exception) {
+                null
             }
         }
     }
