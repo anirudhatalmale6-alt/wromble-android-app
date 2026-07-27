@@ -1,0 +1,76 @@
+Starting a Gradle Daemon (subsequent builds will be faster)
+> Task :app:buildKotlinToolingMetadata UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :app:generateReleaseBuildConfig UP-TO-DATE
+> Task :app:checkReleaseAarMetadata UP-TO-DATE
+> Task :app:generateReleaseResValues UP-TO-DATE
+> Task :app:mapReleaseSourceSetPaths UP-TO-DATE
+> Task :app:generateReleaseResources UP-TO-DATE
+> Task :app:mergeReleaseResources UP-TO-DATE
+> Task :app:packageReleaseResources UP-TO-DATE
+> Task :app:parseReleaseLocalResources UP-TO-DATE
+> Task :app:createReleaseCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksRelease UP-TO-DATE
+> Task :app:processReleaseMainManifest UP-TO-DATE
+> Task :app:processReleaseManifest UP-TO-DATE
+> Task :app:processReleaseManifestForPackage UP-TO-DATE
+> Task :app:processReleaseResources FROM-CACHE
+> Task :app:javaPreCompileRelease UP-TO-DATE
+> Task :app:extractProguardFiles UP-TO-DATE
+> Task :app:mergeReleaseJniLibFolders UP-TO-DATE
+> Task :app:mergeReleaseNativeLibs NO-SOURCE
+> Task :app:stripReleaseDebugSymbols NO-SOURCE
+> Task :app:extractReleaseNativeSymbolTables NO-SOURCE
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:checkReleaseDuplicateClasses UP-TO-DATE
+> Task :app:desugarReleaseFileDependencies UP-TO-DATE
+> Task :app:mergeReleaseStartupProfile UP-TO-DATE
+> Task :app:mergeExtDexRelease UP-TO-DATE
+> Task :app:mergeReleaseArtProfile UP-TO-DATE
+> Task :app:mergeReleaseShaders UP-TO-DATE
+> Task :app:compileReleaseShaders NO-SOURCE
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseAssets UP-TO-DATE
+> Task :app:compressReleaseAssets UP-TO-DATE
+> Task :app:extractReleaseVersionControlInfo UP-TO-DATE
+> Task :app:optimizeReleaseResources UP-TO-DATE
+> Task :app:collectReleaseDependencies UP-TO-DATE
+> Task :app:sdkReleaseDependencyData UP-TO-DATE
+> Task :app:validateSigningRelease UP-TO-DATE
+> Task :app:writeReleaseAppMetadata UP-TO-DATE
+> Task :app:writeReleaseSigningConfigVersions UP-TO-DATE
+
+> Task :app:compileReleaseKotlin
+w: file:///mnt/freelancer-projects/40484621/wromble-android/app/src/main/java/dk/wromble/app/data/LocationProvider.kt:24:52 Unnecessary non-null assertion (!!) on a non-null receiver of type Location
+w: file:///mnt/freelancer-projects/40484621/wromble-android/app/src/main/java/dk/wromble/app/ui/screens/CartScreen.kt:115:84 'constructor Locale(String!, String!)' is deprecated. Deprecated in Java
+w: file:///mnt/freelancer-projects/40484621/wromble-android/app/src/main/java/dk/wromble/app/ui/screens/CartScreen.kt:241:17 'Divider(Modifier = ..., Dp = ..., Color = ...): Unit' is deprecated. Renamed to HorizontalDivider
+w: file:///mnt/freelancer-projects/40484621/wromble-android/app/src/main/java/dk/wromble/app/ui/screens/CartScreen.kt:300:33 'Divider(Modifier = ..., Dp = ..., Color = ...): Unit' is deprecated. Renamed to HorizontalDivider
+w: file:///mnt/freelancer-projects/40484621/wromble-android/app/src/main/java/dk/wromble/app/ui/screens/ChatScreen.kt:63:9 Variable 'ctx' is never used
+w: file:///mnt/freelancer-projects/40484621/wromble-android/app/src/main/java/dk/wromble/app/ui/screens/ChatScreen.kt:215:39 'InsertDriveFile: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.InsertDriveFile
+w: file:///mnt/freelancer-projects/40484621/wromble-android/app/src/main/java/dk/wromble/app/ui/screens/ChatScreen.kt:291:35 'Send: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Send
+w: file:///mnt/freelancer-projects/40484621/wromble-android/app/src/main/java/dk/wromble/app/ui/screens/MainScaffold.kt:25:36 'ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ReceiptLong
+w: file:///mnt/freelancer-projects/40484621/wromble-android/app/src/main/java/dk/wromble/app/ui/screens/StaffBackOffice.kt:102:25 'Divider(Modifier = ..., Dp = ..., Color = ...): Unit' is deprecated. Renamed to HorizontalDivider
+w: file:///mnt/freelancer-projects/40484621/wromble-android/app/src/main/java/dk/wromble/app/ui/screens/StaffBackOffice.kt:374:21 'Divider(Modifier = ..., Dp = ..., Color = ...): Unit' is deprecated. Renamed to HorizontalDivider
+w: file:///mnt/freelancer-projects/40484621/wromble-android/app/src/main/java/dk/wromble/app/ui/screens/StaffScreens.kt:70:25 'Divider(Modifier = ..., Dp = ..., Color = ...): Unit' is deprecated. Renamed to HorizontalDivider
+w: file:///mnt/freelancer-projects/40484621/wromble-android/app/src/main/java/dk/wromble/app/ui/screens/StaffScreens.kt:78:40 'ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ReceiptLong
+w: file:///mnt/freelancer-projects/40484621/wromble-android/app/src/main/java/dk/wromble/app/ui/screens/WromblePlusScreen.kt:74:29 'DirectionsBike: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.DirectionsBike
+
+> Task :app:compileReleaseJavaWithJavac
+> Task :app:generateReleaseLintVitalReportModel
+> Task :app:dexBuilderRelease
+> Task :app:mergeReleaseGlobalSynthetics UP-TO-DATE
+> Task :app:processReleaseJavaRes UP-TO-DATE
+> Task :app:mergeReleaseJavaResource UP-TO-DATE
+> Task :app:mergeDexRelease
+> Task :app:compileReleaseArtProfile
+> Task :app:packageRelease
+> Task :app:createReleaseApkListingFileRedirect UP-TO-DATE
+> Task :app:lintVitalAnalyzeRelease
+> Task :app:lintVitalReportRelease
+> Task :app:lintVitalRelease
+> Task :app:assembleRelease
+
+BUILD SUCCESSFUL in 1m 3s
+48 actionable tasks: 11 executed, 1 from cache, 36 up-to-date

@@ -107,6 +107,6 @@ fun orderStatusLabel(status: String): Pair<String, Color> = when (status.lowerca
     "completed", "delivered" -> "Leveret" to Color(0xFF16A34A)
     "processing", "preparing" -> "Tilberedes" to Color(0xFFEA8A0C)
     "cancelled", "rejected" -> "Annulleret" to WrombleRed
-    "on_the_way", "delivering" -> "Paa vej" to Color(0xFF2563EB)
+    "on_the_way", "delivering" -> "På vej" to Color(0xFF2563EB)
     else -> "Afventer" to Color(0xFF2563EB)
 }

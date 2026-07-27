@@ -56,7 +56,7 @@ fun WromblePlusBand(onClick: () -> Unit) {
                 }
             }
             Text("Gratis levering – hver gang", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            Text("Kun 59,- pr. maaned", color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
+            Text("Kun 59,- pr. måned", color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
         }
         Spacer(Modifier.width(8.dp))
         Box(Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White)
@@ -71,9 +71,9 @@ fun WromblePlusBand(onClick: () -> Unit) {
 fun WromblePlusScreen(nav: NavController) {
     val ctx = LocalContext.current
     val benefits = listOf(
-        Triple(Icons.Filled.DirectionsBike, "Gratis levering", "Ingen leveringsgebyr paa dine ordrer – hver gang du bestiller."),
+        Triple(Icons.Filled.DirectionsBike, "Gratis levering", "Ingen leveringsgebyr på dine ordrer – hver gang du bestiller."),
         Triple(Icons.Filled.LocalOffer, "Faste lave priser", "Adgang til Wromble+ tilbud og priser hos dine favoritter."),
-        Triple(Icons.Filled.Bolt, "Nemt & enkelt", "Ingen binding. Opsig naar som helst – helt uden bovl.")
+        Triple(Icons.Filled.Bolt, "Nemt & enkelt", "Ingen binding. Opsig når som helst – helt uden bøvl.")
     )
 
     Scaffold(
@@ -108,8 +108,8 @@ fun WromblePlusScreen(nav: NavController) {
 
             Spacer(Modifier.height(12.dp))
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Kun 59,- pr. maaned", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text("Ingen binding · opsig naar som helst", fontSize = 12.sp, color = Color(0xFF8A8A90))
+                Text("Kun 59,- pr. måned", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Ingen binding · opsig når som helst", fontSize = 12.sp, color = Color(0xFF8A8A90))
             }
             Spacer(Modifier.height(20.dp))
             Button(

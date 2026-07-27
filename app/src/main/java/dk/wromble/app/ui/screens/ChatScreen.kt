@@ -262,7 +262,7 @@ private fun ChatInputBar(vm: ChatViewModel) {
                     if (vm.isUploading)
                         CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = WrombleRed)
                     else
-                        Icon(Icons.Filled.AddCircle, "Vedhaeft", tint = WrombleRed)
+                        Icon(Icons.Filled.AddCircle, "Vedhæft", tint = WrombleRed)
                 }
                 DropdownMenu(expanded = showAttach, onDismissRequest = { showAttach = false }) {
                     DropdownMenuItem(
@@ -271,7 +271,7 @@ private fun ChatInputBar(vm: ChatViewModel) {
                         onClick = { onCamera() }
                     )
                     DropdownMenuItem(
-                        text = { Text("Vaelg fra galleri") },
+                        text = { Text("Vælg fra galleri") },
                         leadingIcon = { Icon(Icons.Filled.Image, null) },
                         onClick = { showAttach = false; galleryLauncher.launch("image/*") }
                     )

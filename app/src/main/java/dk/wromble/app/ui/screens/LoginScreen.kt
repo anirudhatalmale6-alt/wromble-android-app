@@ -64,7 +64,7 @@ fun LoginScreen(nav: NavController) {
         scope.launch {
             try {
                 val resp = if (role == Role.Privat && !isLogin) {
-                    if (firstname.isBlank()) { error = "Fornavn er paakraevet"; loading = false; return@launch }
+                    if (firstname.isBlank()) { error = "Fornavn er påkrævet"; loading = false; return@launch }
                     Api.service.register(
                         mapOf("firstname" to firstname, "lastname" to lastname,
                             "email" to email, "phone" to phone, "password" to password)
@@ -78,10 +78,10 @@ fun LoginScreen(nav: NavController) {
                 if (u != null) {
                     Session.save(ctx, u)
                     onLoggedIn()
-                } else error = "Netvaerksfejl. Proev igen."
+                } else error = "Netværksfejl. Prøv igen."
             } catch (e: Exception) {
                 loading = false
-                error = "Netvaerksfejl. Proev igen."
+                error = "Netværksfejl. Prøv igen."
             }
         }
     }
@@ -179,7 +179,7 @@ fun LoginScreen(nav: NavController) {
                     Spacer(Modifier.height(16.dp))
                     Text(
                         if (role == Role.Forretning)
-                            "Se og haandter indkomne ordrer for din forretning. Ogsaa for medarbejdere."
+                            "Se og håndter indkomne ordrer for din forretning. Også for medarbejdere."
                         else "Se dine aktive leverancer og marker dem som leveret.",
                         color = Color(0xFF8A8A90), fontSize = 13.sp, textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
