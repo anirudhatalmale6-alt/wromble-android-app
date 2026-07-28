@@ -38,9 +38,11 @@ object Notifier {
             val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             val mp = MediaPlayer()
+            // USAGE_ALARM: forretnings-/chauffoer-alarmen skal lyde selv naar telefonen
+            // er paa lydloes/vibration (spilles paa alarm-kanalen, ikke notifikation).
             mp.setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                    .setUsage(AudioAttributes.USAGE_ALARM)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
             )

@@ -122,7 +122,9 @@ fun CompanyOrdersScreen(nav: NavController) {
         try {
             val r = Api.service.companyOrders(cid, tab)
             if (alarmCheck && tab == "active") {
-                val newOnes = r.orders.filter { it.isNew && it.id !in seen.value }
+                // Alarmér ved ENHVER ny ordre i aktiv-listen - ogsaa auto-accepterede
+                // (auto_accept), som ikke laengere staar som "ny" (isNew=false).
+                val newOnes = r.orders.filter { it.id !in seen.value }
                 if (newOnes.isNotEmpty() && seen.value.isNotEmpty()) {
                     Notifier.playAlarm(ctx)
                     Notifier.notify(ctx, 3001, "Ny ordre!", "Du har ${newOnes.size} ny(e) ordre(r)", WrombleApp.CH_ORDERS)

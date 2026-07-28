@@ -204,8 +204,12 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
     }
 
     if (placedOrderId != null) {
+        // Kunden skal IKKE selv trykke "Foelg ordre" - vi viser kvitteringen kort og
+        // sender derefter automatisk videre til live-sporing. (Kan ogsaa trykkes straks.)
+        val goTrack: () -> Unit = { nav.navigate("tracking/${placedOrderId}") { popUpTo("main") } }
+        LaunchedEffect(placedOrderId) { delay(2500); goTrack() }
         OrderConfirmation(placedOrderId!!, tipAmount = effectiveTip, isCash = payment == 2,
-            onTrack = { nav.navigate("tracking/${placedOrderId}") { popUpTo("main") } })
+            onTrack = goTrack)
         return
     }
 
