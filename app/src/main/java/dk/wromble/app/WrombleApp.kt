@@ -12,12 +12,21 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import dk.wromble.app.data.Http
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.osmdroid.config.Configuration
+import java.io.PrintWriter
+import java.io.StringWriter
 
 class WrombleApp : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Crash-rapportering FOERST, saa selv fejl under opstart fanges.
+        installCrashReporter()
+        sendPendingCrash()
 
         // OpenStreetMap (osmdroid) – app-private tile cache, no storage permission needed.
         val osm = Configuration.getInstance()
@@ -72,6 +81,48 @@ class WrombleApp : Application(), ImageLoaderFactory {
             CH_STATUS, "Ordrestatus", NotificationManager.IMPORTANCE_DEFAULT
         ).apply { description = "Opdateringer om dine bestillinger" }
         nm.createNotificationChannel(status)
+    }
+
+    // Gemmer enhver ukendt (uncaught) crash med enheds-info, saa den kan sendes
+    // ved naeste opstart. Delegerer bagefter til systemets normale handler, saa
+    // adfaerden ellers er uaendret.
+    private fun installCrashReporter() {
+        val prefs = getSharedPreferences("wr_crash", Context.MODE_PRIVATE)
+        val prev = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, ex ->
+            try {
+                val sw = StringWriter()
+                ex.printStackTrace(PrintWriter(sw))
+                val report = buildString {
+                    append("device=").append(Build.MANUFACTURER).append(' ').append(Build.MODEL)
+                        .append(" (").append(Build.DEVICE).append(")\n")
+                    append("android=").append(Build.VERSION.RELEASE)
+                        .append(" SDK ").append(Build.VERSION.SDK_INT).append('\n')
+                    append("app=").append(BuildConfig.VERSION_NAME)
+                        .append(" (").append(BuildConfig.VERSION_CODE).append(")\n")
+                    append("thread=").append(thread.name).append("\n\n")
+                    append(sw.toString())
+                }
+                prefs.edit().putString("pending", report).commit()
+            } catch (_: Throwable) { /* aldrig fejle i fejl-handleren */ }
+            prev?.uncaughtException(thread, ex)
+        }
+    }
+
+    // Sender en evt. gemt crash fra sidste koersel (baggrundstraad, best effort).
+    private fun sendPendingCrash() {
+        val prefs = getSharedPreferences("wr_crash", Context.MODE_PRIVATE)
+        val pending = prefs.getString("pending", null) ?: return
+        prefs.edit().remove("pending").apply()
+        Thread {
+            try {
+                val body = org.json.JSONObject().put("report", pending).toString()
+                    .toRequestBody("application/json".toMediaType())
+                val req = Request.Builder()
+                    .url("https://wromble.dk/api/app-crash-log.php").post(body).build()
+                Http.client.newCall(req).execute().use { }
+            } catch (_: Throwable) { /* diagnostik maa aldrig crashe appen */ }
+        }.start()
     }
 
     companion object {
