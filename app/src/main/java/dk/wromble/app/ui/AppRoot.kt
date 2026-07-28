@@ -1,5 +1,7 @@
 package dk.wromble.app.ui
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -25,7 +27,19 @@ fun AppRoot() {
         Settings.load(ctx)
     }
 
-    NavHost(navController = nav, startDestination = "splash") {
+    // VIGTIGT: skaerm-overgange slaaet FRA. Material3's Scaffold-layout (1.2's
+    // "MeasureFix") korrumperer Compose SlotTable naar en Scaffold maales inde i
+    // en AnimatedContent-overgang (nav-animationen) -> ArrayIndexOutOfBounds-crash
+    // ved navigation (bestil/foelg ordre). Uden overgangsanimation komponeres/maales
+    // hver skaerm statisk EN gang, og den defekte maale-sti udloeses aldrig.
+    NavHost(
+        navController = nav,
+        startDestination = "splash",
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None },
+    ) {
         composable("splash") { SplashScreen(nav) }
         composable("onboarding") { OnboardingScreen(nav) }
         composable("login") { LoginScreen(nav) }
