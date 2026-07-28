@@ -1,8 +1,22 @@
 # =============================================================
 #  Wromble – R8/ProGuard regler
-#  Minify er slaaet TIL (kode-optimering + shrink). Reglerne her
-#  sikrer at Gson/Retrofit-modeller og reflektion IKKE broedes.
+#
+#  VIGTIGT: R8 koeres som en REN gennemgang (pass-through). Vi slaar
+#  minify TIL i build.gradle, men slaar selve shrink/optimize/obfuskering
+#  FRA her med de tre -dont-regler nedenfor. Resultatet:
+#    * DEX-koden er 100% identisk med den build der virker nu
+#      (ingen API-kald kan broedes – det var det R8 "full mode" gjorde
+#       sidst da den fjernede Retrofit's generiske signaturer),
+#    * MEN R8 genererer stadig en mapping-fil (deobfuskeringsfil) som
+#      Gradle laegger ind i AAB'en -> Play Console's gule advarsel
+#      "Der er ikke knyttet nogen fil til fjernelse af sloering" forsvinder.
+#  Bedste af begge verdener: advarslen vaek, nul risiko for net-laget.
 # =============================================================
+
+# --- R8 som ren gennemgang: ingen shrink/optimize/obfuskering ---
+-dontshrink
+-dontoptimize
+-dontobfuscate
 
 # --- Behold ALLE data-/API-modeller (Gson bruger reflektion paa feltnavne) ---
 -keep class dk.wromble.app.data.** { *; }

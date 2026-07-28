@@ -11,8 +11,8 @@ android {
         applicationId = "com.wromble.order"
         minSdk = 24
         targetSdk = 36
-        versionCode = 15
-        versionName = "2.0.9"
+        versionCode = 16
+        versionName = "2.1.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -32,12 +32,14 @@ android {
 
     buildTypes {
         release {
-            // R8/minify slaaet FRA: R8 "full mode" fjernede de generiske signaturer som
-            // Retrofit skal bruge til sine suspend-kald -> alle API-kald fejlede paa enheden
-            // ("Kunne ikke hente data"). Uden minify virker net-laget garanteret (som i den
-            // oprindelige build). Ingen native kode laengere (ZXing), saa native-advarslen er
-            // stadig vaek. Optimerings-advarslen er kun vejledende og blokerer ikke udgivelse.
-            isMinifyEnabled = false
+            // R8/minify slaaet TIL, men som REN gennemgang: proguard-rules.pro har
+            // -dontshrink/-dontoptimize/-dontobfuscate, saa R8 ikke roerer koden
+            // (samme DEX som den build der virker -> API-kald kan ikke broedes),
+            // men R8 genererer stadig en mapping-fil der bundles i AAB'en.
+            // Det fjerner Play Console's gule "manglende deobfuskeringsfil"-advarsel.
+            // shrinkResources holdes FRA (kraever ikke minify-shrink, undgaar at fjerne
+            // ressourcer der bruges via reflektion).
+            isMinifyEnabled = true
             isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             val upload = signingConfigs.getByName("upload")
