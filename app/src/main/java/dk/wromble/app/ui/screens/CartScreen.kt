@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -79,7 +80,8 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
     var city by remember { mutableStateOf("") }
     // Adresse-forslag (DAWA) mens kunden skriver
     var addrSuggestions by remember { mutableStateOf<List<AddressSuggestion>>(emptyList()) }
-    var addrEditing by remember { mutableStateOf(false) }
+    var addrFocused by remember { mutableStateOf(false) }
+    var addrLoading by remember { mutableStateOf(false) }
 
     // Samlet adresse-streng der sendes til backend/chauffør
     fun composedAddress(): String {
@@ -171,14 +173,24 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                     "wanted_ts" to if (scheduleLater) (wantedTime.timeInMillis / 1000).toInt() else 0,
                     "items" to Cart.items.map { mapOf("id" to it.id, "quantity" to it.quantity) }
                 ))
-                ordering = false
                 if (resp.error != null) { error = resp.error; return@launch }
-                if (resp.orderId != null) {
-                    placedOrderId = resp.orderId
-                    Notifier.notify(ctx, resp.orderId, "Ordre modtaget", "Ordre #${resp.orderId} er sendt til restauranten")
+                val oid = resp.orderId
+                if (oid != null && oid > 0) {
+                    // Notifikation maa ALDRIG kunne crashe bestillingen
+                    runCatching {
+                        Notifier.notify(ctx, oid, "Ordre modtaget", "Ordre #$oid er sendt til restauranten")
+                    }
                     Cart.clear()
+                    placedOrderId = oid   // saettes til sidst -> viser kvitteringsskaermen
+                } else {
+                    error = "Kunne ikke afgive bestillingen. Prøv igen."
                 }
-            } catch (e: Exception) { ordering = false; error = "Netværksfejl. Prøv igen." }
+            } catch (e: Throwable) {
+                // Alt (netvaerk, parsing, uventet) fanges saa appen aldrig lukker ned
+                error = "Netværksfejl. Prøv igen."
+            } finally {
+                ordering = false
+            }
         }
     }
 
@@ -270,13 +282,19 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
             if (isDelivery) {
                 Spacer(Modifier.height(12.dp))
 
-                // Hent adresse-forslag fra DAWA, debounced, mens kunden taster vejnavn
-                LaunchedEffect(address) {
-                    if (!addrEditing) return@LaunchedEffect
-                    val q = address
-                    if (q.trim().length < 2) { addrSuggestions = emptyList(); return@LaunchedEffect }
+                // Hent adresse-forslag fra DAWA, debounced, mens kunden taster i adressefeltet.
+                // Koerer saa laenge feltet er i fokus - saa listen dukker paalideligt op,
+                // uanset om feltet var forudfyldt med profiladressen.
+                LaunchedEffect(address, addrFocused) {
+                    if (!addrFocused) { addrLoading = false; return@LaunchedEffect }
+                    val q = address.trim()
+                    if (q.length < 2) { addrSuggestions = emptyList(); addrLoading = false; return@LaunchedEffect }
+                    addrLoading = true
                     delay(250)
-                    if (q == address) addrSuggestions = AddressAutocomplete.suggest(q)
+                    if (q == address.trim() && addrFocused) {
+                        addrSuggestions = AddressAutocomplete.suggest(q)
+                    }
+                    addrLoading = false
                 }
                 // Auto-udfyld by naar postnr er 4 cifre og by-feltet er tomt
                 LaunchedEffect(zip) {
@@ -287,16 +305,26 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                 }
 
                 // Vej – DAWA-forslag udfylder husnr, postnr og by automatisk
-                OutlinedTextField(address, { address = it; addrEditing = true },
-                    label = { Text("Adresse (vej)") },
+                OutlinedTextField(address, { address = it },
+                    label = { Text("Søg adresse (vej + nr)") },
+                    placeholder = { Text("fx Stationstorvet 1, Glostrup") },
                     singleLine = true,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Next),
                     trailingIcon = {
-                        if (address.isNotBlank()) IconButton(onClick = {
-                            address = ""; addrSuggestions = emptyList(); addrEditing = true
-                        }) { Icon(Icons.Filled.Close, "Ryd") }
+                        if (addrLoading) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = WrombleRed)
+                        } else if (address.isNotBlank()) {
+                            IconButton(onClick = { address = ""; addrSuggestions = emptyList() }) {
+                                Icon(Icons.Filled.Close, "Ryd")
+                            }
+                        }
                     },
-                    modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                        .onFocusChanged { st ->
+                            addrFocused = st.isFocused
+                            if (!st.isFocused) addrSuggestions = emptyList()
+                        },
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = WrombleRed, focusedLabelColor = WrombleRed))
 
                 // Forslags-liste (tryk for at udfylde alle felter)
@@ -311,11 +339,12 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                             addrSuggestions.forEach { s ->
                                 Row(
                                     Modifier.fillMaxWidth().clickableNoRipple {
+                                        // Udfyld ALLE felter automatisk fra det valgte forslag
                                         address = s.vejnavn.ifBlank { s.text }
-                                        husnr = s.husnr
-                                        zip = s.postnr
-                                        city = s.postnrnavn
-                                        addrEditing = false
+                                        if (s.husnr.isNotBlank()) husnr = s.husnr
+                                        if (s.postnr.isNotBlank()) zip = s.postnr
+                                        if (s.postnrnavn.isNotBlank()) city = s.postnrnavn
+                                        addrFocused = false
                                         addrSuggestions = emptyList()
                                         focus.clearFocus()   // luk tastaturet naar adressen er valgt
                                     }.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -368,7 +397,7 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                         val geo = withContext(Dispatchers.IO) { reverseGeocode(ctx, vm.userLat, vm.userLng) }
                         if (geo != null) {
                             address = geo.street; husnr = geo.husnr; zip = geo.zip; city = geo.city
-                            addrEditing = false; addrSuggestions = emptyList()
+                            addrFocused = false; addrSuggestions = emptyList()
                         } else error = "Kunne ikke finde din placering – tjek at placering er slået til"
                     }
                 }, contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)) {
