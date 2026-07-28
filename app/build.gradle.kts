@@ -11,8 +11,8 @@ android {
         applicationId = "com.wromble.order"
         minSdk = 24
         targetSdk = 36
-        versionCode = 19
-        versionName = "2.1.3"
+        versionCode = 20
+        versionName = "2.1.4"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -58,7 +58,11 @@ android {
         buildConfig = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"
+        // VIGTIGT: skal matche Kotlin-versionen (1.9.22). Compose-compiler 1.5.10
+        // hoerer til Kotlin 1.9.23 - den forkerte kombination gav uafhjaelpelige
+        // Compose SlotTable-crashes (ArrayIndexOutOfBounds i Scaffold-subcompose)
+        // ved bestilling. 1.5.8 er den korrekte compiler til Kotlin 1.9.22.
+        kotlinCompilerExtensionVersion = "1.5.8"
     }
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }

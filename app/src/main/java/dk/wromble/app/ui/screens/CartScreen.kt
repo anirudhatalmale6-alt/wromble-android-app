@@ -127,6 +127,13 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
         }
     }
 
+    // Ryd kurven FOERST naar kvitteringsskaermen vises (placedOrderId sat). Goeres
+    // i en effekt - ikke inline i bestillingen - saa kurvens bottomBar ikke aendres
+    // samtidig med at skaermen skifter til kvitteringen.
+    LaunchedEffect(placedOrderId) {
+        if (placedOrderId != null) Cart.clear()
+    }
+
     fun wantedLabel(): String {
         if (!scheduleLater) return "Hurtigst muligt (ca. 1 time)"
         val today = Calendar.getInstance()
@@ -180,8 +187,10 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                     runCatching {
                         Notifier.notify(ctx, oid, "Ordre modtaget", "Ordre #$oid er sendt til restauranten")
                     }
-                    Cart.clear()
-                    placedOrderId = oid   // saettes til sidst -> viser kvitteringsskaermen
+                    // Kurven ryddes IKKE her - det sker i en LaunchedEffect naar
+                    // placedOrderId er sat, saa Scaffold'ens bottomBar ikke aendres
+                    // i samme frame som skaermen skifter (undgaar Compose-crash).
+                    placedOrderId = oid   // skifter til kvitteringsskaermen
                 } else {
                     error = "Kunne ikke afgive bestillingen. Prøv igen."
                 }
