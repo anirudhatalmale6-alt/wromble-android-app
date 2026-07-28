@@ -33,6 +33,10 @@ interface WrombleApi {
     @POST("api/register.php")
     suspend fun register(@Body body: Map<String, @JvmSuppressWildcards Any>): LoginResponse
 
+    // Bytter engangs-koden fra "Log ind med Apple" web-flowet til en bruger (samme svar som login)
+    @POST("api/app-apple-exchange.php")
+    suspend fun appleExchange(@Body body: Map<String, @JvmSuppressWildcards Any>): LoginResponse
+
     // --- Orders (customer) ---
     @GET("api/orders.php")
     suspend fun orders(@Query("user_id") userId: Int): OrdersResponse

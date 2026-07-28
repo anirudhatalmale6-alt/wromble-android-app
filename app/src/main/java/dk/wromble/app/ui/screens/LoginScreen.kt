@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dk.wromble.app.data.Api
+import dk.wromble.app.data.AppleAuth
 import dk.wromble.app.data.Session
 import dk.wromble.app.ui.brandGradient
 import dk.wromble.app.ui.clickableNoRipple
@@ -56,6 +57,38 @@ fun LoginScreen(nav: NavController) {
             else -> "main"
         }
         nav.navigate(dest) { popUpTo("login") { inclusive = true } }
+    }
+
+    // "Log ind med Apple": aabner Apple's web-login i en Custom Tab. Apple sender
+    // brugeren tilbage via deep link -> MainActivity laegger koden i AppleAuth.
+    fun startAppleLogin() {
+        error = ""
+        val url = android.net.Uri.parse("https://wromble.dk/app-apple-start.php")
+        try {
+            androidx.browser.customtabs.CustomTabsIntent.Builder().build().launchUrl(ctx, url)
+        } catch (_: Exception) {
+            try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, url)) }
+            catch (_: Exception) { error = "Kunne ikke aabne Apple-login" }
+        }
+    }
+
+    // Naar Apple web-flowet er faerdigt kommer der en engangs-kode retur - byt den
+    // til en bruger og log ind, praecis som et normalt login.
+    LaunchedEffect(AppleAuth.pendingCode) {
+        val code = AppleAuth.pendingCode ?: return@LaunchedEffect
+        AppleAuth.pendingCode = null
+        error = ""; loading = true
+        try {
+            val resp = Api.service.appleExchange(mapOf("code" to code))
+            loading = false
+            if (resp.error != null) { error = resp.error; return@LaunchedEffect }
+            val u = resp.user
+            if (u != null) { Session.save(ctx, u); onLoggedIn() }
+            else error = "Apple-login mislykkedes. Prøv igen."
+        } catch (e: Throwable) {
+            loading = false
+            error = "Apple-login mislykkedes. Prøv igen."
+        }
     }
 
     fun submit() {
@@ -156,6 +189,27 @@ fun LoginScreen(nav: NavController) {
                     if (loading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
                     else Text(if (role == Role.Privat && !isLogin) "Opret konto" else "Log ind",
                         fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                }
+
+                // Social login (kun for privatkunder) - matcher iOS's "Log ind med Apple"
+                if (role == Role.Privat) {
+                    Spacer(Modifier.height(16.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Divider(Modifier.weight(1f), color = Color(0xFFE3E3E8))
+                        Text("  eller  ", color = Color(0xFF9A9AA0), fontSize = 13.sp)
+                        Divider(Modifier.weight(1f), color = Color(0xFFE3E3E8))
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Button(
+                        onClick = { startAppleLogin() },
+                        enabled = !loading,
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
+                    ) {
+                        Text("Log ind med Apple", fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold, color = Color.White)
+                    }
                 }
 
                 if (role == Role.Privat) {

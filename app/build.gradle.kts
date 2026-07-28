@@ -11,8 +11,8 @@ android {
         applicationId = "com.wromble.order"
         minSdk = 24
         targetSdk = 36
-        versionCode = 17
-        versionName = "2.1.1"
+        versionCode = 18
+        versionName = "2.1.2"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -105,6 +105,9 @@ dependencies {
     // Biometrisk app-laas (Face/fingeraftryk)
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.fragment:fragment-ktx:1.6.2")
+
+    // Custom Tabs til "Log ind med Apple" web-flowet (Apple har ingen Android-SDK)
+    implementation("androidx.browser:browser:1.7.0")
 
     // Placering (platform LocationManager bruges – ingen ekstra dep)
 

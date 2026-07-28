@@ -1,5 +1,6 @@
 package dk.wromble.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -8,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.fragment.app.FragmentActivity
+import dk.wromble.app.data.AppleAuth
 import dk.wromble.app.data.Favorites
 import dk.wromble.app.data.Session
 import dk.wromble.app.data.Settings
@@ -32,6 +34,26 @@ class MainActivity : FragmentActivity() {
                 var locked by remember { mutableStateOf(lockAtStart) }
                 if (locked) BiometricLockScreen(onUnlock = { locked = false })
                 else AppRoot()
+            }
+        }
+
+        // "Log ind med Apple" kan have startet os via deep link paa cold start
+        handleDeepLink(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    // Fanger wromble://apple-login?code=... fra Apple web-flowet (Custom Tab) og
+    // lader LoginScreen bytte koden til en bruger.
+    private fun handleDeepLink(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme == "wromble" && data.host == "apple-login") {
+            data.getQueryParameter("code")?.takeIf { it.isNotBlank() }?.let {
+                AppleAuth.pendingCode = it
             }
         }
     }
