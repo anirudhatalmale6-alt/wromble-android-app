@@ -8,6 +8,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -471,7 +473,7 @@ fun StaffTopBar(title: String, nav: NavController, ctx: android.content.Context)
 
 // Delt lyd-indstillings-dialog (melodi + evt. varighed). Bruges af chaufføeren.
 @Composable
-private fun AlarmSettingsDialog(showDuration: Boolean, onDismiss: () -> Unit) {
+fun AlarmSettingsDialog(showDuration: Boolean, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
     var seconds by remember { mutableStateOf(Settings.driverAlarmSeconds) }
     var melody by remember { mutableStateOf(Settings.alarmMelody) }
@@ -480,7 +482,7 @@ private fun AlarmSettingsDialog(showDuration: Boolean, onDismiss: () -> Unit) {
         confirmButton = { TextButton(onClick = { Notifier.stopAlarm(); onDismiss() }) { Text("Færdig") } },
         title = { Text("Lyd-indstillinger") },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 if (showDuration) {
                     Text("Varighed", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

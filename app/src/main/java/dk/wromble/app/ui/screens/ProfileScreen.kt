@@ -75,13 +75,16 @@ fun ProfileScreen(nav: NavController) {
         Section("Min konto")
         if (!isGuest) NavRow(Icons.Filled.Person, "Rediger profil") { nav.navigate("profile/edit") }
 
+        var showSound by remember { mutableStateOf(false) }
         Section("Indstillinger")
         ToggleRow(Icons.Filled.Notifications, "Notifikationer", Settings.notificationsEnabled) {
             Settings.setNotifications(ctx, it)
         }
+        NavRow(Icons.Filled.MusicNote, "Lyd ved ordre-opdatering") { showSound = true }
         ToggleRow(Icons.Filled.LocationOn, "Placering", Settings.locationEnabled) {
             Settings.setLocation(ctx, it)
         }
+        if (showSound) AlarmSettingsDialog(showDuration = false) { showSound = false }
         if (canUseBiometric(ctx)) {
             ToggleRow(Icons.Filled.Fingerprint, "Lås app med biometri", Settings.biometricEnabled) {
                 Settings.setBiometric(ctx, it)

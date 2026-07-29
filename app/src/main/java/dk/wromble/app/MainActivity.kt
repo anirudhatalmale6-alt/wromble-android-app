@@ -1,13 +1,17 @@
 package dk.wromble.app
 
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import dk.wromble.app.data.AppleAuth
 import dk.wromble.app.data.Favorites
@@ -19,6 +23,13 @@ import dk.wromble.app.ui.canUseBiometric
 import dk.wromble.app.ui.theme.WrombleTheme
 
 class MainActivity : FragmentActivity() {
+
+    // Runtime-tilladelse til notifikationer. Uden denne viser Android 13+ (API 33+)
+    // INGEN notifikationer, selv om de er deklareret i manifestet - derfor kom der
+    // ingen notifikationer paa nyere Android-enheder (fx tablet'en i restauranten).
+    private val notifPermLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -26,6 +37,12 @@ class MainActivity : FragmentActivity() {
         Settings.load(this)
         Session.load(this)
         Favorites.load(this)
+
+        // Bed om notifikations-tilladelsen paa Android 13+ hvis den ikke allerede er givet.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            runCatching { notifPermLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) }
+        }
 
         val lockAtStart = Settings.biometricEnabled && Session.user != null && canUseBiometric(this)
 

@@ -98,7 +98,33 @@ object Notifier {
     }
 
     // Navne paa de indbyggede melodier (samme raekkefoelge/lyd som iOS-appen).
-    val melodyNames = listOf("Klassisk", "Stigende", "Hurtig")
+    // 0-2 = klassiske alarm-bip (kraftige). 3-6 = bloede/behagelige toner (til firma+kunde).
+    val melodyNames = listOf("Klassisk", "Stigende", "Hurtig", "Blød", "Perle", "Rolig", "Pling")
+
+    // En kort, EN-gangs behagelig lyd (ikke loop) - bruges til kunden ved statusskift.
+    fun playChime(ctx: Context) {
+        if (!Settings.notificationsEnabled) return
+        runCatching {
+            val mp = MediaPlayer()
+            mp.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            var usedFile = false
+            runCatching {
+                val f = melodyWav(ctx, Settings.alarmMelody)
+                if (f.exists() && f.length() > 0) { mp.setDataSource(f.absolutePath); usedFile = true }
+            }
+            if (!usedFile) {
+                mp.setDataSource(ctx, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+            }
+            mp.setOnCompletionListener { runCatching { it.release() } }
+            mp.prepare()
+            mp.start()
+        }
+    }
 
     // Kort forhaandsvisning (2 sek) af en melodi.
     fun previewMelody(ctx: Context, melody: Int) {
@@ -107,8 +133,9 @@ object Notifier {
     }
 
     // Genererer (og cacher) en WAV-fil for melodien. Samme toner som iOS' WrombleAlarm.
+    // "v2" i navnet cache-buster'er de gamle 3-melodi-filer fra tidligere builds.
     private fun melodyWav(ctx: Context, melody: Int): java.io.File {
-        val f = java.io.File(ctx.cacheDir, "wr_alarm_$melody.wav")
+        val f = java.io.File(ctx.cacheDir, "wr_alarm_v2_$melody.wav")
         if (f.exists() && f.length() > 0) return f
         runCatching { f.writeBytes(makeWav(melody)) }
         return f
@@ -117,10 +144,15 @@ object Notifier {
     private fun makeWav(melody: Int): ByteArray {
         val sr = 44100
         val tones: DoubleArray; val beep: Double; val gap: Double; val count: Int
+        val amp: Double; val soft: Boolean
         when (melody) {
-            1 -> { tones = doubleArrayOf(880.0, 1108.7, 1318.5); beep = 0.16; gap = 0.05; count = 9 }
-            2 -> { tones = doubleArrayOf(1318.5);                beep = 0.09; gap = 0.05; count = 12 }
-            else -> { tones = doubleArrayOf(1046.5, 784.0);      beep = 0.18; gap = 0.06; count = 8 }
+            1 -> { tones = doubleArrayOf(880.0, 1108.7, 1318.5); beep = 0.16; gap = 0.05; count = 9;  amp = 0.90; soft = false }
+            2 -> { tones = doubleArrayOf(1318.5);                beep = 0.09; gap = 0.05; count = 12; amp = 0.90; soft = false }
+            3 -> { tones = doubleArrayOf(659.25, 783.99);        beep = 0.45; gap = 0.18; count = 4;  amp = 0.55; soft = true }   // Blød
+            4 -> { tones = doubleArrayOf(523.25, 659.25, 783.99, 1046.5); beep = 0.22; gap = 0.06; count = 8; amp = 0.55; soft = true } // Perle (arpeggio)
+            5 -> { tones = doubleArrayOf(587.33, 440.0);         beep = 0.55; gap = 0.30; count = 4;  amp = 0.45; soft = true }   // Rolig
+            6 -> { tones = doubleArrayOf(880.0, 1174.66);        beep = 0.40; gap = 0.35; count = 4;  amp = 0.50; soft = true }   // Pling
+            else -> { tones = doubleArrayOf(1046.5, 784.0);      beep = 0.18; gap = 0.06; count = 8;  amp = 0.90; soft = false }
         }
         val pcm = ArrayList<Short>()
         for (t in 0 until count) {
@@ -128,8 +160,14 @@ object Notifier {
             val bn = (sr * beep).toInt()
             for (k in 0 until bn) {
                 val x = k.toDouble() / sr
-                val env = minOf(1.0, minOf(k.toDouble(), (bn - k).toDouble()) / (sr * 0.005))
-                val s = Math.sin(2.0 * Math.PI * f * x) * env * 0.9
+                val env = if (soft) {
+                    // blød klokke: hurtig blid start, derefter eksponentielt henfald
+                    val attack = minOf(1.0, k.toDouble() / (sr * 0.004))
+                    attack * Math.exp(-3.0 * (k.toDouble() / bn))
+                } else {
+                    minOf(1.0, minOf(k.toDouble(), (bn - k).toDouble()) / (sr * 0.005))
+                }
+                val s = Math.sin(2.0 * Math.PI * f * x) * env * amp
                 pcm.add((maxOf(-1.0, minOf(1.0, s)) * 32767).toInt().toShort())
             }
             repeat((sr * gap).toInt()) { pcm.add(0.toShort()) }

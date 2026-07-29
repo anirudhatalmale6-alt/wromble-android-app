@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
 import dk.wromble.app.data.Api
+import dk.wromble.app.data.Notifier
 import dk.wromble.app.data.OrderStatus
 import dk.wromble.app.ui.components.*
 import dk.wromble.app.ui.kr
@@ -64,6 +65,14 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
     val steps = listOf("Modtaget", "Bekræftet", "På vej", "Leveret")
     val stage = status?.stage ?: 0
     val rejected = stage < 0
+
+    // Behagelig lyd til kunden hver gang ordren rykker et trin frem (fx bekræftet, på vej, leveret).
+    var lastStage by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(stage, rejected) {
+        val prev = lastStage
+        if (prev != null && !rejected && stage > prev) Notifier.playChime(ctx)
+        lastStage = stage
+    }
     val progress by animateFloatAsState(
         targetValue = if (rejected) 0f else (stage.coerceIn(0, 3)) / 3f,
         animationSpec = tween(600), label = "prog"

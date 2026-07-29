@@ -111,16 +111,38 @@ fun HomeScreen(nav: NavController, vm: MainViewModel) {
             // Categories row (with "Alle")
             if (vm.categories.isNotEmpty()) {
                 item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        item {
-                            CategoryTile("Alle", null, selectedCat == null, "✨") { selectedCat = null }
+                    // Paa tablet/brede skærme fordeles kategori-ikonerne jævnt ud over HELE
+                    // bredden (fylder helt ud til kanten), i stedet for at ligge klumpet til
+                    // venstre med tom plads til højre. Paa telefon beholdes den rullende række.
+                    val fitsWide = screenW >= 600 && (vm.categories.size + 1) <= 8
+                    if (fitsWide) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(Modifier.weight(1f)) {
+                                CategoryTile("Alle", null, selectedCat == null, "✨", fillWidth = true) { selectedCat = null }
+                            }
+                            vm.categories.forEach { cat ->
+                                Box(Modifier.weight(1f)) {
+                                    CategoryTile(cat.name, cat.image, selectedCat == cat.key, catEmoji(cat.key), fillWidth = true) {
+                                        selectedCat = if (selectedCat == cat.key) null else cat.key
+                                    }
+                                }
+                            }
                         }
-                        items(vm.categories) { cat ->
-                            CategoryTile(cat.name, cat.image, selectedCat == cat.key, catEmoji(cat.key)) {
-                                selectedCat = if (selectedCat == cat.key) null else cat.key
+                    } else {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            item {
+                                CategoryTile("Alle", null, selectedCat == null, "✨") { selectedCat = null }
+                            }
+                            items(vm.categories) { cat ->
+                                CategoryTile(cat.name, cat.image, selectedCat == cat.key, catEmoji(cat.key)) {
+                                    selectedCat = if (selectedCat == cat.key) null else cat.key
+                                }
                             }
                         }
                     }
@@ -282,13 +304,14 @@ private fun EmptyNote(text: String) {
 }
 
 @Composable
-fun CategoryTile(name: String, image: String?, selected: Boolean, emoji: String, onClick: () -> Unit) {
+fun CategoryTile(name: String, image: String?, selected: Boolean, emoji: String, fillWidth: Boolean = false, onClick: () -> Unit) {
     Column(
-        Modifier.width(90.dp).clickableNoRipple(onClick),
+        (if (fillWidth) Modifier.fillMaxWidth() else Modifier.width(90.dp)).clickableNoRipple(onClick),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            Modifier.size(84.dp).clip(RoundedCornerShape(20.dp))
+            (if (fillWidth) Modifier.fillMaxWidth().aspectRatio(1f) else Modifier.size(84.dp))
+                .clip(RoundedCornerShape(20.dp))
                 .background(if (selected) WrombleRed else Color(0xFFEDEDF0)),
             contentAlignment = Alignment.Center
         ) {
