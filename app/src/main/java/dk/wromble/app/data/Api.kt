@@ -109,6 +109,12 @@ interface WrombleApi {
     @POST("api/app-company-autoaccept.php")
     suspend fun setCompanyAutoAccept(@Body body: Map<String, @JvmSuppressWildcards Any>): SimpleResponse
 
+    @GET("api/app-company-alarm.php")
+    suspend fun companyAlarm(@Query("company_id") companyId: Int): AlarmResponse
+
+    @POST("api/app-company-alarm.php")
+    suspend fun setCompanyAlarm(@Body body: Map<String, @JvmSuppressWildcards Any>): SimpleResponse
+
     @GET("api/app-company-profile.php")
     suspend fun companyProfile(@Query("company_id") companyId: Int): CompanyProfileResponse
 

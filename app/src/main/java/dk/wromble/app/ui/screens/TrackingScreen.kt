@@ -5,23 +5,33 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -134,6 +144,17 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
                 }
             }
 
+            // Leverings-illustration (restaurant + bil paa roed rute + hus). Ren, professionel
+            // visning i stedet for et rigtigt kort - bilen flytter sig efter ordrens status.
+            if (!rejected && status != null) {
+                Spacer(Modifier.height(22.dp))
+                DeliveryRouteIllustration(
+                    stage = stage.coerceIn(0, 3),
+                    isDelivery = status?.isDelivery ?: true,
+                    companyName = status?.companyName ?: ""
+                )
+            }
+
             // Adresse-info + "Vis på kort". Vi åbner systemets kort-app (Google Maps/kort)
             // via en geo:-intent i stedet for et indlejret kort. Det er 100% stabilt – der
             // er intet indlejret kort-view der kan crashe sporingsskaermen, og kunden lander
@@ -178,5 +199,71 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
             }
             Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+// Professionel leverings-illustration: restaurant til venstre, kundens hus til hoejre,
+// en roed rute imellem, og en bil/bud der bevaeger sig langs ruten efter ordrens status.
+@Composable
+private fun DeliveryRouteIllustration(stage: Int, isDelivery: Boolean, companyName: String) {
+    val target = when {
+        stage <= 0 -> 0.04f
+        stage == 1 -> 0.24f
+        stage == 2 -> 0.62f
+        else -> 1f
+    }
+    val anim by animateFloatAsState(targetValue = target, animationSpec = tween(600), label = "route")
+    val density = LocalDensity.current
+    BoxWithConstraints(
+        Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(16.dp))
+            .background(Brush.verticalGradient(listOf(Color(0xFFEAF2FF), Color(0xFFF1F8F0))))
+    ) {
+        val wPx = with(density) { maxWidth.toPx() }
+        val hPx = with(density) { maxHeight.toPx() }
+        val y = hPx * 0.60f
+        val startX = wPx * 0.16f
+        val endX = wPx * 0.84f
+        val carX = startX + (endX - startX) * anim
+
+        Canvas(Modifier.fillMaxSize()) {
+            drawLine(
+                Color(0x559E9E9E), Offset(startX, y), Offset(endX, y),
+                strokeWidth = 4.dp.toPx(), cap = StrokeCap.Round,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(3f, 18f))
+            )
+            drawLine(
+                WrombleRed, Offset(startX, y), Offset(carX, y),
+                strokeWidth = 4.dp.toPx(), cap = StrokeCap.Round
+            )
+        }
+
+        fun toDp(px: Float) = with(density) { px.toDp() }
+        RouteMarker(Icons.Filled.Restaurant, WrombleRed,
+            Modifier.offset(x = toDp(startX) - 17.dp, y = toDp(y) - 17.dp))
+        RouteMarker(if (isDelivery) Icons.Filled.Home else Icons.Filled.ShoppingBag, Color(0xFF2E6FF2),
+            Modifier.offset(x = toDp(endX) - 17.dp, y = toDp(y) - 17.dp))
+        Box(
+            Modifier.offset(x = toDp(carX) - 21.dp, y = toDp(y) - 21.dp - 22.dp)
+                .size(42.dp).clip(CircleShape).background(Color.White),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(if (isDelivery) Icons.Filled.DirectionsCar else Icons.Filled.ShoppingBag,
+                null, tint = WrombleRed, modifier = Modifier.size(20.dp))
+        }
+        Row(
+            Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(companyName.ifBlank { "Restaurant" }, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                maxLines = 1, modifier = Modifier.weight(1f))
+            Text(if (isDelivery) "Dig" else "Afhentning", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun RouteMarker(icon: ImageVector, tint: Color, modifier: Modifier) {
+    Box(modifier.size(34.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(16.dp))
     }
 }

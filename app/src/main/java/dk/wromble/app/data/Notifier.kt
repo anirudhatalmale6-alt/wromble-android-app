@@ -32,8 +32,17 @@ object Notifier {
         runCatching { NotificationManagerCompat.from(ctx).notify(id, n) }
     }
 
+    private var alarmPlayer: MediaPlayer? = null
+    private var alarmVibrator: Vibrator? = null
+    private val alarmHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var alarmStop: Runnable? = null
+
     // Loud alarm + vibration for merchants/drivers when a new order arrives.
-    fun playAlarm(ctx: Context) {
+    // Spiller (i loop) i [seconds] sekunder og stopper saa af sig selv. seconds<=0 = ingen lyd.
+    // Kan afbrydes med stopAlarm() (fx naar forretningen accepterer ordren).
+    fun playAlarm(ctx: Context, seconds: Int = 5) {
+        if (seconds <= 0) return
+        stopAlarm()
         runCatching {
             val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
@@ -47,10 +56,10 @@ object Notifier {
                     .build()
             )
             mp.setDataSource(ctx, uri)
-            mp.isLooping = false
-            mp.setOnCompletionListener { it.release() }
+            mp.isLooping = true
             mp.prepare()
             mp.start()
+            alarmPlayer = mp
         }
         runCatching {
             val vib = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -59,11 +68,23 @@ object Notifier {
                 @Suppress("DEPRECATION")
                 ctx.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             }
+            alarmVibrator = vib
+            val pattern = longArrayOf(0, 400, 300, 400, 300)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vib.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 400, 200, 400), -1))
+                vib.vibrate(VibrationEffect.createWaveform(pattern, 0))  // 0 = gentag
             } else {
-                @Suppress("DEPRECATION") vib.vibrate(longArrayOf(0, 400, 200, 400), -1)
+                @Suppress("DEPRECATION") vib.vibrate(pattern, 0)
             }
         }
+        val stop = Runnable { stopAlarm() }
+        alarmStop = stop
+        alarmHandler.postDelayed(stop, seconds * 1000L)
+    }
+
+    // Stopper alarmen med det samme (lyd + vibration + planlagt stop).
+    fun stopAlarm() {
+        alarmStop?.let { alarmHandler.removeCallbacks(it) }; alarmStop = null
+        runCatching { alarmPlayer?.stop(); alarmPlayer?.release() }; alarmPlayer = null
+        runCatching { alarmVibrator?.cancel() }; alarmVibrator = null
     }
 }

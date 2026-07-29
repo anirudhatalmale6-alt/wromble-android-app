@@ -44,6 +44,7 @@ fun CompanyDashboardScreen(nav: NavController) {
     val s = Session.user
     var autoAccept by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
+    var alarmSeconds by remember { mutableStateOf(5) }
 
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     LaunchedEffect(Unit) {
@@ -52,6 +53,7 @@ fun CompanyDashboardScreen(nav: NavController) {
         if (cid > 0) {
             try { autoAccept = Api.service.companyAutoAccept(cid).autoAccept == 1 } catch (_: Exception) {}
             try { busy = Api.service.companyBusy(cid).busy == 1 } catch (_: Exception) {}
+            try { alarmSeconds = Api.service.companyAlarm(cid).alarmSeconds } catch (_: Exception) {}
         }
     }
 
@@ -72,6 +74,30 @@ fun CompanyDashboardScreen(nav: NavController) {
                             busy = it
                             scope.launch { runCatching { Api.service.setCompanyBusy(mapOf("company_id" to (s?.companyId ?: 0), "busy" to if (it) 1 else 0)) } }
                         }
+                        Divider(Modifier.padding(vertical = 4.dp), color = Color(0xFFEDEDF0))
+                        Text("Lyd ved ny ordre", modifier = Modifier.padding(top = 4.dp, bottom = 6.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(0 to "Fra", 5 to "5s", 10 to "10s", 15 to "15s").forEach { (v, label) ->
+                                FilterChip(
+                                    selected = alarmSeconds == v,
+                                    onClick = {
+                                        alarmSeconds = v
+                                        if (v > 0) Notifier.playAlarm(ctx, 2) else Notifier.stopAlarm()  // kort forhaandsvisning
+                                        scope.launch { runCatching { Api.service.setCompanyAlarm(mapOf("company_id" to (s?.companyId ?: 0), "alarm_seconds" to v)) } }
+                                    },
+                                    label = { Text(label) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = WrombleRed,
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+                        Text(
+                            if (alarmSeconds == 0) "Der afspilles ingen lyd ved nye ordrer."
+                            else "Alarmen spiller i $alarmSeconds sek. og stopper når du accepterer ordren.",
+                            fontSize = 12.sp, color = Color(0xFF8A8A90), modifier = Modifier.padding(top = 6.dp)
+                        )
                     }
                 }
             }
@@ -116,6 +142,7 @@ fun CompanyOrdersScreen(nav: NavController) {
     var loading by remember { mutableStateOf(true) }
     var toast by remember { mutableStateOf<String?>(null) }
     val seen = remember { mutableStateOf(setOf<Int>()) }
+    var alarmSeconds by remember { mutableStateOf(5) }   // firmaets valgte varighed (0 = fra)
 
     suspend fun load(alarmCheck: Boolean) {
         val cid = session?.companyId ?: return
@@ -126,7 +153,7 @@ fun CompanyOrdersScreen(nav: NavController) {
                 // (auto_accept), som ikke laengere staar som "ny" (isNew=false).
                 val newOnes = r.orders.filter { it.id !in seen.value }
                 if (newOnes.isNotEmpty() && seen.value.isNotEmpty()) {
-                    Notifier.playAlarm(ctx)
+                    Notifier.playAlarm(ctx, alarmSeconds)   // spiller i firmaets valgte antal sek
                     Notifier.notify(ctx, 3001, "Ny ordre!", "Du har ${newOnes.size} ny(e) ordre(r)", WrombleApp.CH_ORDERS)
                 }
             }
@@ -134,6 +161,13 @@ fun CompanyOrdersScreen(nav: NavController) {
             orders.clear(); orders.addAll(r.orders)
         } catch (_: Exception) {} finally { loading = false }
     }
+
+    // Hent firmaets lyd-indstilling (0/5/10/15 sek), og stop alarmen naar skaermen forlades.
+    LaunchedEffect(Unit) {
+        val cid = session?.companyId ?: 0
+        if (cid > 0) runCatching { alarmSeconds = Api.service.companyAlarm(cid).alarmSeconds }
+    }
+    DisposableEffect(Unit) { onDispose { Notifier.stopAlarm() } }
 
     LaunchedEffect(tab) { loading = true; load(false) }
     // auto-refresh every 5s with alarm detection
@@ -143,6 +177,7 @@ fun CompanyOrdersScreen(nav: NavController) {
 
     fun action(o: CompanyOrder, act: String) {
         val cid = session?.companyId ?: return
+        Notifier.stopAlarm()   // stop lyden med det samme naar forretningen reagerer paa ordren
         scope.launch {
             try {
                 val res = Api.service.companyOrderAction(mapOf("company_id" to cid, "order_id" to o.id, "action" to act))

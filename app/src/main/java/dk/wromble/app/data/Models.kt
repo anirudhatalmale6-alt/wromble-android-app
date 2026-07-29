@@ -258,6 +258,7 @@ data class TipCheckoutResponse(
 )
 data class BusyResponse(val busy: Int = 0)
 data class AutoAcceptResponse(@SerializedName("auto_accept") val autoAccept: Int = 0)
+data class AlarmResponse(@SerializedName("alarm_seconds") val alarmSeconds: Int = 5)
 data class PayoutResponse(val success: Boolean = false, val amount: Double = 0.0, val error: String? = null)
 data class ChatStartResponse(
     @SerializedName("conversation_id") val conversationId: Int? = null,
