@@ -10,6 +10,10 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Chauffoerens baggrunds-vagt (lyd ved nye leverancer med slukket skaerm) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
@@ -41,6 +45,11 @@
                 <data android:scheme="wromble" android:host="apple-login" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".DriverAlarmService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

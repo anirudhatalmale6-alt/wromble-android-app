@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import dk.wromble.app.DriverAlarmService
 import dk.wromble.app.WrombleApp
 import dk.wromble.app.data.*
 import dk.wromble.app.ui.Pill
@@ -305,12 +306,16 @@ fun DriverDashboardScreen(nav: NavController) {
     val seen = remember { mutableStateOf(setOf<Int>()) }
     var showAlarmSettings by remember { mutableStateOf(false) }
 
-    DisposableEffect(Unit) { onDispose { Notifier.stopAlarm() } }
+    DisposableEffect(Unit) { onDispose { Notifier.stopAlarm(); DriverAlarmService.stop(ctx) } }
     if (showAlarmSettings) {
         AlarmSettingsDialog(showDuration = true) { showAlarmSettings = false }
     }
 
-    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
+    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        // Naar placeringstilladelse er givet, starter vi baggrunds-vagten (kraever location-fgs),
+        // saa chaufføeren faar lyd ved nye leverancer ogsaa med slukket/laast skaerm.
+        if (LocationProvider.hasPermission(ctx)) session?.let { DriverAlarmService.start(ctx, it.id, it.companyId) }
+    }
     LaunchedEffect(Unit) {
         val perms = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) perms.add(Manifest.permission.POST_NOTIFICATIONS)
@@ -321,7 +326,10 @@ fun DriverDashboardScreen(nav: NavController) {
         val s = session ?: return
         try {
             val r = Api.service.driverOrders(s.id, s.companyId)
-            if (alarm) {
+            // Baggrunds-vagten (DriverAlarmService) haandterer alarmen naar den kører -
+            // saa lader vi UI'et vaere for ikke at spille lyden dobbelt. Kun hvis tjenesten
+            // ikke kører (fx ingen placeringstilladelse) alarmerer UI'et selv som fallback.
+            if (alarm && !DriverAlarmService.running) {
                 val fresh = r.orders.filter { it.id !in seen.value }
                 if (fresh.isNotEmpty() && seen.value.isNotEmpty()) {
                     Notifier.playAlarm(ctx, Settings.driverAlarmSeconds)   // chaufføerens valgte varighed
@@ -372,8 +380,12 @@ fun DriverDashboardScreen(nav: NavController) {
         val s = session ?: return
         scope.launch {
             try {
-                val r = Api.service.driverDeliver(mapOf("rider_id" to s.id, "company_id" to s.companyId, "order_id" to o.id))
-                if (r.success) { active.remove(o); toast = "Ordre #${o.id} leveret" } else toast = "Kunne ikke opdatere"
+                // Send chaufføerens position med, saa serveren kan tjekke 3 km-radius.
+                val body = mutableMapOf<String, Any>("rider_id" to s.id, "company_id" to s.companyId, "order_id" to o.id)
+                LocationProvider.lastKnown(ctx)?.let { body["latitude"] = it.latitude; body["longitude"] = it.longitude }
+                val r = Api.service.driverDeliver(body)
+                if (r.success) { active.remove(o); toast = "Ordre #${o.id} leveret" }
+                else toast = r.error ?: "Kunne ikke opdatere"   // fx "Du er 10,2 km fra leveringsadressen ..."
             } catch (_: Exception) { toast = "Netværksfejl" }
         }
     }
