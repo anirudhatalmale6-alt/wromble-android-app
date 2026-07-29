@@ -45,6 +45,9 @@ fun CompanyDashboardScreen(nav: NavController) {
     var autoAccept by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var alarmSeconds by remember { mutableStateOf(5) }
+    var melody by remember { mutableStateOf(Settings.alarmMelody) }
+
+    DisposableEffect(Unit) { onDispose { Notifier.stopAlarm() } }
 
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     LaunchedEffect(Unit) {
@@ -98,6 +101,21 @@ fun CompanyDashboardScreen(nav: NavController) {
                             else "Alarmen spiller i $alarmSeconds sek. og stopper når du accepterer ordren.",
                             fontSize = 12.sp, color = Color(0xFF8A8A90), modifier = Modifier.padding(top = 6.dp)
                         )
+                        if (alarmSeconds > 0) {
+                            Text("Melodi", modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Notifier.melodyNames.forEachIndexed { idx, name ->
+                                    FilterChip(
+                                        selected = melody == idx,
+                                        onClick = { melody = idx; Notifier.previewMelody(ctx, idx) },  // saetter + afspiller
+                                        label = { Text(name) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = WrombleRed, selectedLabelColor = Color.White
+                                        )
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -283,6 +301,12 @@ fun DriverDashboardScreen(nav: NavController) {
     var loading by remember { mutableStateOf(true) }
     var toast by remember { mutableStateOf<String?>(null) }
     val seen = remember { mutableStateOf(setOf<Int>()) }
+    var showAlarmSettings by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) { onDispose { Notifier.stopAlarm() } }
+    if (showAlarmSettings) {
+        AlarmSettingsDialog(showDuration = true) { showAlarmSettings = false }
+    }
 
     val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
     LaunchedEffect(Unit) {
@@ -298,7 +322,7 @@ fun DriverDashboardScreen(nav: NavController) {
             if (alarm) {
                 val fresh = r.orders.filter { it.id !in seen.value }
                 if (fresh.isNotEmpty() && seen.value.isNotEmpty()) {
-                    Notifier.playAlarm(ctx)
+                    Notifier.playAlarm(ctx, Settings.driverAlarmSeconds)   // chaufføerens valgte varighed
                     Notifier.notify(ctx, 3002, "Ny leverance!", "Du har en ny leverance", WrombleApp.CH_ORDERS)
                 }
             }
@@ -356,6 +380,7 @@ fun DriverDashboardScreen(nav: NavController) {
         topBar = {
             TopAppBar(title = { Text("Chauffør · ${session?.name ?: ""}", fontWeight = FontWeight.Bold, maxLines = 1) },
                 actions = {
+                    IconButton(onClick = { showAlarmSettings = true }) { Icon(Icons.Filled.Notifications, "Lyd", tint = WrombleRed) }
                     IconButton(onClick = { nav.navigate("earnings/rider/${session?.id ?: 0}") }) { Icon(Icons.Filled.Payments, "Drikkepenge", tint = WrombleRed) }
                     IconButton(onClick = { Session.clear(ctx); nav.navigate("login") { popUpTo(0) } }) { Icon(Icons.AutoMirrored.Filled.Logout, "Log ud", tint = WrombleRed) }
                 },
@@ -441,5 +466,51 @@ fun StaffTopBar(title: String, nav: NavController, ctx: android.content.Context)
             }) { Icon(Icons.AutoMirrored.Filled.Logout, "Log ud", tint = WrombleRed) }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+    )
+}
+
+// Delt lyd-indstillings-dialog (melodi + evt. varighed). Bruges af chaufføeren.
+@Composable
+private fun AlarmSettingsDialog(showDuration: Boolean, onDismiss: () -> Unit) {
+    val ctx = LocalContext.current
+    var seconds by remember { mutableStateOf(Settings.driverAlarmSeconds) }
+    var melody by remember { mutableStateOf(Settings.alarmMelody) }
+    AlertDialog(
+        onDismissRequest = { Notifier.stopAlarm(); onDismiss() },
+        confirmButton = { TextButton(onClick = { Notifier.stopAlarm(); onDismiss() }) { Text("Færdig") } },
+        title = { Text("Lyd-indstillinger") },
+        text = {
+            Column {
+                if (showDuration) {
+                    Text("Varighed", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(0 to "Fra", 5 to "5s", 10 to "10s", 15 to "15s").forEach { (v, label) ->
+                            FilterChip(
+                                selected = seconds == v,
+                                onClick = { seconds = v; Settings.setDriverAlarmSeconds(ctx, v) },
+                                label = { Text(label) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = WrombleRed, selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                }
+                Text("Melodi", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 4.dp))
+                Notifier.melodyNames.forEachIndexed { idx, name ->
+                    Row(
+                        Modifier.fillMaxWidth().clickableNoRipple { melody = idx; Notifier.previewMelody(ctx, idx) }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Filled.MusicNote, null, tint = WrombleRed, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(name, modifier = Modifier.weight(1f))
+                        if (melody == idx) Icon(Icons.Filled.Check, null, tint = WrombleRed)
+                    }
+                }
+            }
+        }
     )
 }
