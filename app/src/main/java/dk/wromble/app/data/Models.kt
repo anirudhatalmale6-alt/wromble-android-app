@@ -91,7 +91,11 @@ data class OrderStatus(
     @SerializedName("company_lng") val companyLng: Double = 0.0,
     @SerializedName("company_address") val companyAddress: String = "",
     @SerializedName("customer_lat") val customerLat: Double = 0.0,
-    @SerializedName("customer_lng") val customerLng: Double = 0.0
+    @SerializedName("customer_lng") val customerLng: Double = 0.0,
+    @SerializedName("rider_lat") val riderLat: Double = 0.0,
+    @SerializedName("rider_lng") val riderLng: Double = 0.0,
+    @SerializedName("rider_live") val riderLive: Boolean = false,
+    @SerializedName("eta_text") val etaText: String = ""
 )
 
 // Chat

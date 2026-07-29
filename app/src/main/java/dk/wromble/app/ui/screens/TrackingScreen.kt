@@ -157,11 +157,21 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
             // visning i stedet for et rigtigt kort - bilen flytter sig efter ordrens status.
             if (!rejected && status != null) {
                 Spacer(Modifier.height(22.dp))
-                DeliveryRouteIllustration(
-                    stage = stage.coerceIn(0, 3),
-                    isDelivery = status?.isDelivery ?: true,
-                    companyName = status?.companyName ?: ""
-                )
+                val st = status!!
+                if (st.stage == 2 && st.riderLive && st.isDelivery) {
+                    // Live-kort: chaufføerens rigtige GPS-position paa vej til kunden.
+                    LiveDriverMap(st)
+                    if (st.etaText.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(st.etaText, color = WrombleRed, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
+                } else {
+                    DeliveryRouteIllustration(
+                        stage = stage.coerceIn(0, 3),
+                        isDelivery = status?.isDelivery ?: true,
+                        companyName = status?.companyName ?: ""
+                    )
+                }
             }
 
             // Adresse-info + "Vis på kort". Vi åbner systemets kort-app (Google Maps/kort)
@@ -275,4 +285,40 @@ private fun RouteMarker(icon: ImageVector, tint: Color, modifier: Modifier) {
     Box(modifier.size(34.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
         Icon(icon, null, tint = tint, modifier = Modifier.size(16.dp))
     }
+}
+
+// Live-kort med chaufføerens rigtige GPS-position (osmdroid). Vises kun mens ordren er
+// paa vej. Genbruger den faelles kort-opsaetning (newMapView/addPin) fra MapCommon.
+@Composable
+private fun LiveDriverMap(s: OrderStatus) {
+    val ctx = LocalContext.current
+    val mapView = remember { newMapView(ctx) }
+    DisposableEffect(Unit) {
+        mapView.onResume()
+        onDispose { mapView.onPause() }
+    }
+    AndroidView(
+        factory = { mapView },
+        modifier = Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(14.dp)),
+        update = { mv ->
+            mv.overlays.clear()
+            mv.addPin(s.riderLat, s.riderLng, "Chauffør", WrombleRedInt)
+            if (s.customerLat != 0.0 || s.customerLng != 0.0) mv.addPin(s.customerLat, s.customerLng, "Dig", BlueInt)
+            if (s.companyLat != 0.0 || s.companyLng != 0.0) mv.addPin(s.companyLat, s.companyLng, "Restaurant", android.graphics.Color.DKGRAY)
+            val pts = ArrayList<GeoPoint>()
+            pts.add(GeoPoint(s.riderLat, s.riderLng))
+            if (s.customerLat != 0.0 || s.customerLng != 0.0) pts.add(GeoPoint(s.customerLat, s.customerLng))
+            if (pts.size >= 2) {
+                runCatching {
+                    val bb = org.osmdroid.util.BoundingBox.fromGeoPoints(pts).increaseByScale(1.6f)
+                    mv.zoomToBoundingBox(bb, true, 80)
+                }.onFailure {
+                    mv.controller.setZoom(15.0); mv.controller.setCenter(GeoPoint(s.riderLat, s.riderLng))
+                }
+            } else {
+                mv.controller.setZoom(15.0); mv.controller.setCenter(GeoPoint(s.riderLat, s.riderLng))
+            }
+            mv.invalidate()
+        }
+    )
 }
