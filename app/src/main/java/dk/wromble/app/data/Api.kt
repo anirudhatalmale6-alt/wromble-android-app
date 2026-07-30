@@ -86,6 +86,13 @@ interface WrombleApi {
     @POST("api/driver-location.php")
     suspend fun driverLocation(@Body body: Map<String, @JvmSuppressWildcards Any>): SimpleResponse
 
+    // Chaufføerens eget mobilnummer (vises til forretningen paa ordren)
+    @GET("api/app-driver-phone.php")
+    suspend fun driverPhoneGet(@Query("rider_id") riderId: Int): DriverPhoneResponse
+
+    @POST("api/app-driver-phone.php")
+    suspend fun driverPhoneSave(@Body body: Map<String, @JvmSuppressWildcards Any>): DriverPhoneResponse
+
     // --- Staff: company ---
     @GET("api/app-company-orders.php")
     suspend fun companyOrders(

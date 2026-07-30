@@ -161,38 +161,24 @@ fun CompanyOrdersScreen(nav: NavController) {
     var tab by remember { mutableStateOf("active") }
     var loading by remember { mutableStateOf(true) }
     var toast by remember { mutableStateOf<String?>(null) }
-    val seen = remember { mutableStateOf(setOf<Int>()) }
-    var alarmSeconds by remember { mutableStateOf(5) }   // firmaets valgte varighed (0 = fra)
 
-    suspend fun load(alarmCheck: Boolean) {
+    suspend fun load() {
         val cid = session?.companyId ?: return
         try {
             val r = Api.service.companyOrders(cid, tab)
-            if (alarmCheck && tab == "active") {
-                // Alarmér ved ENHVER ny ordre i aktiv-listen - ogsaa auto-accepterede
-                // (auto_accept), som ikke laengere staar som "ny" (isNew=false).
-                val newOnes = r.orders.filter { it.id !in seen.value }
-                if (newOnes.isNotEmpty() && seen.value.isNotEmpty()) {
-                    Notifier.playAlarm(ctx, alarmSeconds)   // spiller i firmaets valgte antal sek
-                    Notifier.notify(ctx, 3001, "Ny ordre!", "Du har ${newOnes.size} ny(e) ordre(r)", WrombleApp.CH_ORDERS)
-                }
-            }
-            seen.value = r.orders.map { it.id }.toSet()
             orders.clear(); orders.addAll(r.orders)
         } catch (_: Exception) {} finally { loading = false }
     }
 
-    // Hent firmaets lyd-indstilling (0/5/10/15 sek), og stop alarmen naar skaermen forlades.
-    LaunchedEffect(Unit) {
-        val cid = session?.companyId ?: 0
-        if (cid > 0) runCatching { alarmSeconds = Api.service.companyAlarm(cid).alarmSeconds }
-    }
+    // Lyd ved nye ordrer haandteres nu app-globalt (CompanyOrderWatcher i AppRoot), saa
+    // den virker uanset hvilken firma-skaerm der vises. Her stopper vi blot alarmen naar
+    // skaermen forlades eller forretningen reagerer paa en ordre.
     DisposableEffect(Unit) { onDispose { Notifier.stopAlarm() } }
 
-    LaunchedEffect(tab) { loading = true; load(false) }
-    // auto-refresh every 5s with alarm detection
+    LaunchedEffect(tab) { loading = true; load() }
+    // auto-refresh af listen hvert 5. sekund
     LaunchedEffect(tab) {
-        while (true) { delay(5000); load(true) }
+        while (true) { delay(5000); load() }
     }
 
     fun action(o: CompanyOrder, act: String) {
@@ -202,8 +188,11 @@ fun CompanyOrdersScreen(nav: NavController) {
             try {
                 val res = Api.service.companyOrderAction(mapOf("company_id" to cid, "order_id" to o.id, "action" to act))
                 if (res.success) {
-                    if (act == "reject") { orders.remove(o); toast = "Ordre #${o.id} afvist" }
-                    else { load(false); toast = "Ordre #${o.id} accepteret" }
+                    when (act) {
+                        "reject" -> { orders.remove(o); toast = "Ordre #${o.id} afvist" }
+                        "cancel" -> { orders.remove(o); toast = "Ordre #${o.id} annulleret" }
+                        else -> { load(); toast = "Ordre #${o.id} accepteret" }
+                    }
                 } else toast = "Handlingen mislykkedes"
             } catch (_: Exception) { toast = "Netværksfejl" }
         }
@@ -242,6 +231,7 @@ fun CompanyOrdersScreen(nav: NavController) {
 
 @Composable
 private fun CompanyOrderCard(o: CompanyOrder, active: Boolean, onAction: (String) -> Unit) {
+    val ctx = LocalContext.current
     Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)) {
@@ -261,7 +251,21 @@ private fun CompanyOrderCard(o: CompanyOrder, active: Boolean, onAction: (String
             }
             if (o.delivery && o.address.isNotBlank()) Text(o.address, fontSize = 13.sp, color = Color(0xFF8A8A90), modifier = Modifier.padding(top = 4.dp))
             o.wantedTime?.takeIf { it.isNotBlank() }?.let { Text("Ønsket: $it", fontSize = 13.sp, color = Color(0xFF6B6B72)) }
-            o.etaText?.let { Text("Chauffør: ${o.riderName ?: ""} · $it", fontSize = 13.sp, color = Color(0xFF6B6B72)) }
+            if (!o.riderName.isNullOrBlank()) {
+                val eta = o.etaText?.takeIf { it.isNotBlank() }
+                Text("Chauffør: ${o.riderName}" + (eta?.let { " · $it" } ?: ""),
+                    fontSize = 13.sp, color = Color(0xFF6B6B72), modifier = Modifier.padding(top = 2.dp))
+                if (!o.riderPhone.isNullOrBlank()) {
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 2.dp).clickableNoRipple {
+                            runCatching { ctx.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${o.riderPhone}"))) }
+                        }) {
+                        Icon(Icons.Filled.Phone, null, tint = WrombleRed, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(o.riderPhone!!, fontSize = 13.sp, color = WrombleRed, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
             Spacer(Modifier.height(6.dp))
             o.items.forEach { i ->
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
@@ -284,6 +288,28 @@ private fun CompanyOrderCard(o: CompanyOrder, active: Boolean, onAction: (String
                         border = androidx.compose.foundation.BorderStroke(1.dp, WrombleRed)) {
                         Text("Afvis", color = WrombleRed, fontWeight = FontWeight.Bold)
                     }
+                }
+            } else if (active && !o.delivered && !o.isNew) {
+                // Accepteret ordre der er i gang: forretningen kan annullere den.
+                var confirmCancel by remember { mutableStateOf(false) }
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = { confirmCancel = true }, modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, WrombleRed)) {
+                    Text("Annuller ordre", color = WrombleRed, fontWeight = FontWeight.Bold)
+                }
+                if (confirmCancel) {
+                    AlertDialog(
+                        onDismissRequest = { confirmCancel = false },
+                        title = { Text("Annuller ordre #${o.id}?") },
+                        text = { Text("Kunden faar besked om at ordren er annulleret. Dette kan ikke fortrydes.") },
+                        confirmButton = {
+                            TextButton(onClick = { confirmCancel = false; onAction("cancel") }) {
+                                Text("Annuller ordre", color = WrombleRed, fontWeight = FontWeight.Bold)
+                            }
+                        },
+                        dismissButton = { TextButton(onClick = { confirmCancel = false }) { Text("Fortryd") } }
+                    )
                 }
             }
         }
@@ -483,14 +509,43 @@ fun StaffTopBar(title: String, nav: NavController, ctx: android.content.Context)
 @Composable
 fun AlarmSettingsDialog(showDuration: Boolean, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     var seconds by remember { mutableStateOf(Settings.driverAlarmSeconds) }
     var melody by remember { mutableStateOf(Settings.alarmMelody) }
+    // Chaufføerens eget mobilnummer (vises til forretningen paa ordren). Kun for chauffoerer.
+    val riderId = Session.user?.id ?: 0
+    var phone by remember { mutableStateOf("") }
+    var phoneSaved by remember { mutableStateOf(false) }
+    if (showDuration && riderId > 0) {
+        LaunchedEffect(Unit) { runCatching { phone = Api.service.driverPhoneGet(riderId).phone } }
+    }
     AlertDialog(
         onDismissRequest = { Notifier.stopAlarm(); onDismiss() },
         confirmButton = { TextButton(onClick = { Notifier.stopAlarm(); onDismiss() }) { Text("Færdig") } },
-        title = { Text("Lyd-indstillinger") },
+        title = { Text(if (showDuration) "Indstillinger" else "Lyd-indstillinger") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
+                if (showDuration && riderId > 0) {
+                    Text("Dit mobilnummer", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp))
+                    Text("Vises til forretningen paa ordren, saa de kan kontakte dig.",
+                        fontSize = 12.sp, color = Color(0xFF8A8A90), modifier = Modifier.padding(bottom = 6.dp))
+                    OutlinedTextField(
+                        value = phone,
+                        onValueChange = { phone = it.take(20); phoneSaved = false },
+                        singleLine = true,
+                        placeholder = { Text("fx 12 34 56 78") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    TextButton(onClick = {
+                        scope.launch {
+                            runCatching { Api.service.driverPhoneSave(mapOf("rider_id" to riderId, "phone" to phone)) }
+                            phoneSaved = true
+                        }
+                    }) { Text(if (phoneSaved) "Gemt ✓" else "Gem nummer", color = WrombleRed, fontWeight = FontWeight.Bold) }
+                    Spacer(Modifier.height(14.dp))
+                }
                 if (showDuration) {
                     Text("Varighed", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -152,7 +152,8 @@ data class CompanyOrder(
     @SerializedName("wanted_time") val wantedTime: String? = null,
     val overdue: Boolean = false,
     @SerializedName("eta_text") val etaText: String? = null,
-    @SerializedName("rider_name") val riderName: String? = null
+    @SerializedName("rider_name") val riderName: String? = null,
+    @SerializedName("rider_phone") val riderPhone: String? = null
 )
 
 // Company back-office
@@ -230,6 +231,7 @@ data class PlaceOrderResponse(
 )
 data class DriverOrdersResponse(val orders: List<DriverOrder> = emptyList())
 data class CompanyOrdersResponse(val orders: List<CompanyOrder> = emptyList())
+data class DriverPhoneResponse(val success: Boolean = false, val phone: String = "")
 data class JobsResponse(val jobs: List<JobPost> = emptyList())
 
 // Back-office / profile / tips envelopes
