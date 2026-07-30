@@ -57,22 +57,24 @@ class WrombleApp : Application(), ImageLoaderFactory {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = getSystemService(NotificationManager::class.java) ?: return
 
-        // High-priority merchant/driver alarm channel (loud, vibrate)
-        val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        // Kanal til "ny ordre"-notifikationen. VIGTIGT: kanalen skal vaere LYDLOES og
+        // uden vibration. Selve alarmen (den VALGTE melodi, i den VALGTE varighed) spilles
+        // af Notifier.playAlarm() som en separat MediaPlayer - saa forretningen kan STOPPE
+        // den praecist naar ordren accepteres/annulleres.
+        // Tidligere havde kanalen OGSAA en lyd (systemets standard-alarm): den spillede
+        // oveni melodien (to lyde paa én gang / "den gamle lyd henover"), i sin EGEN laengde
+        // (passede ikke med 5/10/15 sek), og kunne IKKE stoppes ved accept (kun Notifier's
+        // egen afspiller kan vi stoppe - systemets kanal-lyd koerte videre). Derfor: helt
+        // lydloes kanal, kun et banner.
+        // Kanal-indstillinger er UFORANDERLIGE efter oprettelse, saa den gamle (lydende)
+        // kanal slettes og en ny oprettes under et nyt id (wromble_orders_v2).
+        runCatching { nm.deleteNotificationChannel("wromble_orders") }
         val orders = NotificationChannel(
             CH_ORDERS, "Nye ordrer", NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Alarm ved nye ordrer og leverancer"
-            enableVibration(true)
-            vibrationPattern = longArrayOf(0, 500, 250, 500, 250, 500)
-            setSound(
-                alarmSound,
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
-            )
+            description = "Besked ved nye ordrer og leverancer"
+            enableVibration(false)
+            setSound(null, null)
         }
         nm.createNotificationChannel(orders)
 
@@ -126,7 +128,7 @@ class WrombleApp : Application(), ImageLoaderFactory {
     }
 
     companion object {
-        const val CH_ORDERS = "wromble_orders"
+        const val CH_ORDERS = "wromble_orders_v2"   // v2 = lydloes kanal (lyden styres af Notifier.playAlarm)
         const val CH_STATUS = "wromble_status"
     }
 }
