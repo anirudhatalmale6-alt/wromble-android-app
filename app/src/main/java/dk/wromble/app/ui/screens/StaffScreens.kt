@@ -87,7 +87,9 @@ fun CompanyDashboardScreen(nav: NavController) {
                                     selected = alarmSeconds == v,
                                     onClick = {
                                         alarmSeconds = v
-                                        if (v > 0) Notifier.playAlarm(ctx, 2) else Notifier.stopAlarm()  // kort forhaandsvisning
+                                        // Afspil den VALGTE varighed som forhaandsvisning, saa man kan
+                                        // hoere forskel paa 5/10/15 sek (tryk "Fra" for at stoppe).
+                                        if (v > 0) Notifier.playAlarm(ctx, v) else Notifier.stopAlarm()
                                         scope.launch { runCatching { Api.service.setCompanyAlarm(mapOf("company_id" to (s?.companyId ?: 0), "alarm_seconds" to v)) } }
                                     },
                                     label = { Text(label) },

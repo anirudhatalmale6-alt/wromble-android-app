@@ -61,8 +61,15 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
     var reloadKey by remember { mutableStateOf(0) }
 
     // VIGTIGT: Tilbage-knappen (baade den i toppen og systemets) skal ALTID virke,
-    // uanset hvad der sker med kortet/statussen. BackHandler garanterer det.
-    BackHandler { nav.popBackStack() }
+    // uanset hvad der sker med kortet/statussen. Hvis der intet er at poppe tilbage
+    // til (fx hvis sporingen blev aabnet direkte/som eneste skaerm), gaar vi til
+    // forsiden i stedet - saa man ALDRIG sidder fast paa sporings-skaermen.
+    val goBack: () -> Unit = {
+        if (!nav.popBackStack()) {
+            nav.navigate("main") { launchSingleTop = true; popUpTo(0) { inclusive = true } }
+        }
+    }
+    BackHandler { goBack() }
 
     // Poll live status every 12s (matches iOS). Foerste svar saetter firstLoadDone,
     // saa vi aldrig haenger paa en tom/blank skaerm - vi viser enten indhold, en
@@ -106,7 +113,7 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
                 Modifier.fillMaxWidth().statusBarsPadding().height(56.dp).padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { nav.popBackStack() }) {
+                IconButton(onClick = { goBack() }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "Tilbage")
                 }
                 Text("Ordre #$orderId", fontWeight = FontWeight.Bold, fontSize = 18.sp)

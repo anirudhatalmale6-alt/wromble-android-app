@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -11,8 +13,8 @@ android {
         applicationId = "com.wromble.order"
         minSdk = 24
         targetSdk = 36
-        versionCode = 44
-        versionName = "2.5.4"
+        versionCode = 45
+        versionName = "2.5.5"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -20,12 +22,17 @@ android {
         create("upload") {
             // Registreret upload-noegle for com.wromble.order (Play kraever SHA1 61:3F:84...),
             // samme noegle som den oprindelige app blev signeret med (alias wromble-key).
+            // Passwords laeses fra keystore.properties i projekt-roden (IKKE committet),
+            // saa de ikke ligger i klartekst i versionsstyring. Mangler filen, bygges en
+            // USIGNERET release (tilfoej keystore.properties for at signere).
             val ks = file("wromble-release.keystore")
-            if (ks.exists()) {
+            val propsFile = rootProject.file("keystore.properties")
+            if (ks.exists() && propsFile.exists()) {
+                val p = Properties().apply { propsFile.inputStream().use { load(it) } }
                 storeFile = ks
-                storePassword = "Wromble2024Release"
-                keyAlias = "wromble-key"
-                keyPassword = "Wromble2024Release"
+                storePassword = p.getProperty("storePassword")
+                keyAlias = p.getProperty("keyAlias")
+                keyPassword = p.getProperty("keyPassword")
             }
         }
     }

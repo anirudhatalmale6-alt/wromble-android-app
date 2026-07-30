@@ -16,3 +16,6 @@
 /app/wromble-upload.keystore
 /app/wromble-release.keystore
 build.log
+
+# Signerings-oplysninger (holdes ude af versionsstyring)
+keystore.properties

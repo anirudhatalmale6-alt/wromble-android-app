@@ -91,9 +91,19 @@ object Notifier {
     }
 
     // Stopper alarmen med det samme (lyd + vibration + planlagt stop).
+    // VIGTIGT: stop() OG release() koeres i HVER sit runCatching. Paa nogle tablets
+    // kaster MediaPlayer.stop() en IllegalStateException, og hvis stop og release laa
+    // i samme blok, blev release sprunget over -> den looping-afspiller blev aldrig
+    // frigivet og spillede videre for evigt (to lyde oveni hinanden + varigheden
+    // "virkede ikke", fordi den gamle loop koerte uendeligt). Nu frigives den ALTID.
     fun stopAlarm() {
         alarmStop?.let { alarmHandler.removeCallbacks(it) }; alarmStop = null
-        runCatching { alarmPlayer?.stop(); alarmPlayer?.release() }; alarmPlayer = null
+        val mp = alarmPlayer; alarmPlayer = null   // nul-stil feltet foerst (undgaar dobbelt-frigivelse)
+        if (mp != null) {
+            runCatching { if (mp.isPlaying) mp.stop() }
+            runCatching { mp.reset() }
+            runCatching { mp.release() }
+        }
         runCatching { alarmVibrator?.cancel() }; alarmVibrator = null
     }
 
