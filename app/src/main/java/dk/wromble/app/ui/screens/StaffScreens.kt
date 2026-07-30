@@ -28,7 +28,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import dk.wromble.app.DriverAlarmService
 import dk.wromble.app.WrombleApp
 import dk.wromble.app.data.*
 import dk.wromble.app.ui.Pill
@@ -306,15 +305,14 @@ fun DriverDashboardScreen(nav: NavController) {
     val seen = remember { mutableStateOf(setOf<Int>()) }
     var showAlarmSettings by remember { mutableStateOf(false) }
 
-    DisposableEffect(Unit) { onDispose { Notifier.stopAlarm(); DriverAlarmService.stop(ctx) } }
+    DisposableEffect(Unit) { onDispose { Notifier.stopAlarm() } }
     if (showAlarmSettings) {
         AlarmSettingsDialog(showDuration = true) { showAlarmSettings = false }
     }
 
     val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        // Naar placeringstilladelse er givet, starter vi baggrunds-vagten (kraever location-fgs),
-        // saa chaufføeren faar lyd ved nye leverancer ogsaa med slukket/laast skaerm.
-        if (LocationProvider.hasPermission(ctx)) session?.let { DriverAlarmService.start(ctx, it.id, it.companyId) }
+        // Placering + notifikationer bruges til live-GPS og lyd ved nye leverancer mens
+        // appen er aaben. (Baggrunds-lyd med slukket skaerm haandteres via push/Firebase.)
     }
     LaunchedEffect(Unit) {
         val perms = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -326,10 +324,8 @@ fun DriverDashboardScreen(nav: NavController) {
         val s = session ?: return
         try {
             val r = Api.service.driverOrders(s.id, s.companyId)
-            // Baggrunds-vagten (DriverAlarmService) haandterer alarmen naar den kører -
-            // saa lader vi UI'et vaere for ikke at spille lyden dobbelt. Kun hvis tjenesten
-            // ikke kører (fx ingen placeringstilladelse) alarmerer UI'et selv som fallback.
-            if (alarm && !DriverAlarmService.running) {
+            // Lyd + notifikation ved en ny leverance mens appen er aaben.
+            if (alarm) {
                 val fresh = r.orders.filter { it.id !in seen.value }
                 if (fresh.isNotEmpty() && seen.value.isNotEmpty()) {
                     Notifier.playAlarm(ctx, Settings.driverAlarmSeconds)   // chaufføerens valgte varighed
