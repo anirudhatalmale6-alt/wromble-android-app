@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -41,6 +42,16 @@
                 <data android:scheme="wromble" android:host="apple-login" />
             </intent-filter>
         </activity>
+
+        <!-- ZXing-scanneren (zxing-android-embedded) erklaerer CaptureActivity med
+             SENSOR_LANDSCAPE. Vi bruger vores egen Compose-scanner (BarcodeView) og
+             ikke CaptureActivity, men bibliotekets laasning udloeser Play's advarsel om
+             stoerrelses-/retningsbegraensning paa store skaerme (Android 16+). Vi
+             overskriver retningen, saa der ingen begraensning er. -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="fullSensor"
+            tools:replace="android:screenOrientation" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
