@@ -1,12 +1,15 @@
 package dk.wromble.app.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.material.icons.Icons
@@ -51,13 +54,28 @@ import org.osmdroid.util.GeoPoint
 fun TrackingScreen(nav: NavController, orderId: Int) {
     val ctx = LocalContext.current
     var status by remember { mutableStateOf<OrderStatus?>(null) }
-    var loading by remember { mutableStateOf(true) }
+    // firstLoadDone: vi har faaet mindst ét svar (eller fejl) tilbage fra serveren.
+    // reloadKey: bumpes af "Proev igen"-knappen for at genstarte polling-loekken.
+    var firstLoadDone by remember { mutableStateOf(false) }
+    var loadFailed by remember { mutableStateOf(false) }
+    var reloadKey by remember { mutableStateOf(0) }
 
-    // Poll live status every 12s (matches iOS)
-    LaunchedEffect(orderId) {
+    // VIGTIGT: Tilbage-knappen (baade den i toppen og systemets) skal ALTID virke,
+    // uanset hvad der sker med kortet/statussen. BackHandler garanterer det.
+    BackHandler { nav.popBackStack() }
+
+    // Poll live status every 12s (matches iOS). Foerste svar saetter firstLoadDone,
+    // saa vi aldrig haenger paa en tom/blank skaerm - vi viser enten indhold, en
+    // spinner med tekst, eller en fejl med "Proev igen".
+    LaunchedEffect(orderId, reloadKey) {
         while (true) {
-            try { status = Api.service.orderStatus(orderId) } catch (_: Exception) {}
-            loading = false
+            try {
+                status = Api.service.orderStatus(orderId)
+                loadFailed = false
+            } catch (_: Exception) {
+                if (status == null) loadFailed = true
+            }
+            firstLoadDone = true
             delay(12000)
         }
     }
@@ -68,7 +86,8 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
 
     // Behagelig lyd til kunden hver gang ordren rykker et trin frem (fx bekræftet, på vej, leveret).
     var lastStage by remember { mutableStateOf<Int?>(null) }
-    LaunchedEffect(stage, rejected) {
+    LaunchedEffect(stage, rejected, status) {
+        if (status == null) return@LaunchedEffect
         val prev = lastStage
         if (prev != null && !rejected && stage > prev) Notifier.playChime(ctx)
         lastStage = stage
@@ -78,28 +97,57 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
         animationSpec = tween(600), label = "prog"
     )
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Ordre #$orderId", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
-            )
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        // Fast top-bjaelke (ingen Scaffold/TopAppBar - de kan blive maalt inde i en
+        // navigations-overgang og korrumpere Compose's SlotTable -> frossen/blank skaerm).
+        // En simpel Row med en IconButton er 100% stabil og altid klikbar.
+        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
+            Row(
+                Modifier.fillMaxWidth().statusBarsPadding().height(56.dp).padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { nav.popBackStack() }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Tilbage")
+                }
+                Text("Ordre #$orderId", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            }
         }
-    ) { pad ->
+
+        // --- Loading-tilstand: aldrig en bar blank skaerm ---
+        if (!firstLoadDone && status == null) {
+            Box(Modifier.fillMaxSize(), Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = WrombleRed)
+                    Spacer(Modifier.height(14.dp))
+                    Text("Henter ordre #$orderId…", color = Color(0xFF8A8A90))
+                }
+            }
+            return@Column
+        }
+
+        // --- Fejl-tilstand: server svarede ikke, og vi har ingen data at vise ---
+        if (status == null && loadFailed) {
+            Box(Modifier.fillMaxSize().padding(32.dp), Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Kunne ikke hente ordren", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Tjek din internetforbindelse og proev igen.",
+                        color = Color(0xFF8A8A90), fontSize = 14.sp)
+                    Spacer(Modifier.height(18.dp))
+                    Button(
+                        onClick = { firstLoadDone = false; loadFailed = false; reloadKey++ },
+                        colors = ButtonDefaults.buttonColors(containerColor = WrombleRed)
+                    ) { Text("Proev igen") }
+                }
+            }
+            return@Column
+        }
+
+        // --- Indhold (rulbart, saa intet nogensinde bliver klippet paa smaa skaerme) ---
         Column(
-            Modifier.fillMaxSize().padding(pad).background(MaterialTheme.colorScheme.background)
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
         ) {
-            if (loading && status == null) {
-                Box(Modifier.fillMaxWidth().padding(40.dp), Alignment.Center) { CircularProgressIndicator(color = WrombleRed) }
-                return@Column
-            }
-
             Spacer(Modifier.height(16.dp))
             // Progress ring
             Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
