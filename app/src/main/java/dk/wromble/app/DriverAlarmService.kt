@@ -85,9 +85,11 @@ class DriverAlarmService : Service() {
             .setOngoing(true)
             .setContentIntent(tap)
             .build()
-        val canLoc = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && LocationProvider.hasPermission(this)
+        // Type = DATA_SYNC (henter nye leverancer fra serveren). Kraever ingen
+        // location-foreground-tilladelse, saa Google ikke beder om demonstrationsvideo.
         val ok = runCatching {
-            if (canLoc) startForeground(ONGOING_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                startForeground(ONGOING_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
             else startForeground(ONGOING_ID, n)
         }.isSuccess
         // startForeground SKAL kaldes indenfor faa sek. efter startForegroundService, ellers
@@ -133,10 +135,11 @@ class DriverAlarmService : Service() {
     private fun onNewOrder() {
         // Den kraftige alarm (USAGE_ALARM + wake lock) - lyder ogsaa med slukket skaerm.
         Notifier.playAlarm(applicationContext, Settings.driverAlarmSeconds)
-        // Fuldskaerms-notifikation for at vaekke skaermen. Falder blødt tilbage til en
-        // almindelig heads-up hvis fuldskaerm ikke er tilladt (Android 14+).
+        // Heads-up notifikation. Alarmen lyder allerede via alarm-kanalen (USAGE_ALARM
+        // + wake lock) ogsaa med slukket skaerm - saa vi behoever ikke full-screen-intent
+        // (som ellers udloeser en ekstra Play-erklaering).
         runCatching {
-            val full = PendingIntent.getActivity(
+            val tap = PendingIntent.getActivity(
                 this, 1, Intent(this, MainActivity::class.java),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
@@ -145,9 +148,9 @@ class DriverAlarmService : Service() {
                 .setContentTitle("Ny leverance!")
                 .setContentText("Du har en ny leverance i Wromble.")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
                 .setAutoCancel(true)
-                .setFullScreenIntent(full, true)
+                .setContentIntent(tap)
                 .build()
             NotificationManagerCompat.from(this).notify(NEW_ORDER_ID, n)
         }
