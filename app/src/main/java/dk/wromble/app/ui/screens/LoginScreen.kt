@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dk.wromble.app.data.Api
 import dk.wromble.app.data.AppleAuth
+import dk.wromble.app.data.FacebookAuth
 import dk.wromble.app.data.Session
 import dk.wromble.app.ui.brandGradient
 import dk.wromble.app.ui.clickableNoRipple
@@ -88,6 +89,39 @@ fun LoginScreen(nav: NavController) {
         } catch (e: Throwable) {
             loading = false
             error = "Apple-login mislykkedes. Prøv igen."
+        }
+    }
+
+    // "Log ind med Facebook": aabner Facebook's web-login i en Custom Tab (genbruger
+    // hjemmesidens Facebook-opsaetning). Facebook sender brugeren tilbage via deep
+    // link -> MainActivity laegger koden i FacebookAuth.
+    fun startFacebookLogin() {
+        error = ""
+        val url = android.net.Uri.parse("https://wromble.dk/app-facebook-start.php")
+        try {
+            androidx.browser.customtabs.CustomTabsIntent.Builder().build().launchUrl(ctx, url)
+        } catch (_: Exception) {
+            try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, url)) }
+            catch (_: Exception) { error = "Kunne ikke aabne Facebook-login" }
+        }
+    }
+
+    // Naar Facebook web-flowet er faerdigt kommer der en engangs-kode retur - byt den
+    // til en bruger og log ind, praecis som Apple-flowet.
+    LaunchedEffect(FacebookAuth.pendingCode) {
+        val code = FacebookAuth.pendingCode ?: return@LaunchedEffect
+        FacebookAuth.pendingCode = null
+        error = ""; loading = true
+        try {
+            val resp = Api.service.facebookExchange(mapOf("code" to code))
+            loading = false
+            if (resp.error != null) { error = resp.error; return@LaunchedEffect }
+            val u = resp.user
+            if (u != null) { Session.save(ctx, u); onLoggedIn() }
+            else error = "Facebook-login mislykkedes. Prøv igen."
+        } catch (e: Throwable) {
+            loading = false
+            error = "Facebook-login mislykkedes. Prøv igen."
         }
     }
 
@@ -208,6 +242,17 @@ fun LoginScreen(nav: NavController) {
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
                     ) {
                         Text("Log ind med Apple", fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold, color = Color.White)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = { startFacebookLogin() },
+                        enabled = !loading,
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1877F2))
+                    ) {
+                        Text("Log ind med Facebook", fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold, color = Color.White)
                     }
                 }

@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import dk.wromble.app.data.AppleAuth
+import dk.wromble.app.data.FacebookAuth
 import dk.wromble.app.data.Favorites
 import dk.wromble.app.data.Session
 import dk.wromble.app.data.Settings
@@ -71,6 +72,10 @@ class MainActivity : FragmentActivity() {
         if (data.scheme == "wromble" && data.host == "apple-login") {
             data.getQueryParameter("code")?.takeIf { it.isNotBlank() }?.let {
                 AppleAuth.pendingCode = it
+            }
+        } else if (data.scheme == "wromble" && data.host == "fb-login") {
+            data.getQueryParameter("code")?.takeIf { it.isNotBlank() }?.let {
+                FacebookAuth.pendingCode = it
             }
         }
     }

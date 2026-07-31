@@ -41,6 +41,13 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="wromble" android:host="apple-login" />
             </intent-filter>
+            <!-- Deep link tilbage fra "Log ind med Facebook" web-flowet (Custom Tab) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="wromble" android:host="fb-login" />
+            </intent-filter>
         </activity>
 
         <!-- ZXing-scanneren (zxing-android-embedded) erklaerer CaptureActivity med
