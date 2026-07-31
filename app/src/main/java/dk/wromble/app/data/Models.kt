@@ -11,7 +11,10 @@ data class UserProfile(
     val phone: String? = null,
     val type: String = "customer",
     @SerializedName("company_id") val companyId: Int = 0,
-    val role: String = ""
+    val role: String = "",
+    // Sikkerheds-token udstedt af serveren ved login. Sendes med hver forespoergsel
+    // (Authorization: Bearer) saa serveren selv kan afgoere hvem kalderen er.
+    val token: String? = null
 )
 
 data class Restaurant(

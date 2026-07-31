@@ -211,6 +211,21 @@ private class RetryInterceptor(private val maxRetries: Int = 2) : Interceptor {
     }
 }
 
+// Vedhaefter login-token'en (Authorization: Bearer) paa hver forespoergsel, saa
+// serveren selv kan afgoere hvem kalderen er. Uden token sendes forespoergslen
+// uaendret (offentlige endpoints som restaurants/menu virker stadig).
+private class AuthInterceptor : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val token = Session.token
+        val req = if (!token.isNullOrBlank()) {
+            chain.request().newBuilder()
+                .header("Authorization", "Bearer $token")
+                .build()
+        } else chain.request()
+        return chain.proceed(req)
+    }
+}
+
 object Http {
     // Shared client with a bounded dispatcher so we never flood the shared host
     // (mirrors the iOS CachedAsyncImage concurrency gate + retry).
@@ -224,6 +239,7 @@ object Http {
             .dispatcher(dispatcher)
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor(AuthInterceptor())
             .addInterceptor(RetryInterceptor())
             .addInterceptor(logging)
             .build()

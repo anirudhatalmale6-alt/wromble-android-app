@@ -18,12 +18,16 @@ object Session {
     private const val PREFS = "wromble_prefs"
     var user: UserProfile? = null
 
+    // Nuvaerende login-token (bruges af AuthInterceptor til at signere hver forespoergsel).
+    val token: String? get() = user?.token
+
     fun save(ctx: Context, u: UserProfile) {
         user = u
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putInt("id", u.id).putString("name", u.name).putString("email", u.email)
             .putString("phone", u.phone).putString("type", u.type)
             .putInt("company_id", u.companyId).putString("role", u.role)
+            .putString("token", u.token)
             .apply()
     }
 
@@ -38,7 +42,8 @@ object Session {
             phone = p.getString("phone", null),
             type = p.getString("type", "customer") ?: "customer",
             companyId = p.getInt("company_id", 0),
-            role = p.getString("role", "") ?: ""
+            role = p.getString("role", "") ?: "",
+            token = p.getString("token", null)
         )
         return user
     }
