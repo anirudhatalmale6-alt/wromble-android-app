@@ -279,6 +279,15 @@ data class ChatPollResponse(
 )
 data class SimpleResponse(val success: Boolean = false, val error: String? = null, val message: String? = null)
 
+// Forudprintet QR-kode opslag (api/qr-resolve.php)
+data class QrResolveResponse(
+    val linked: Boolean = false,
+    val alias: String? = null,
+    @SerializedName("company_id") val companyId: Int = 0,
+    @SerializedName("company_name") val companyName: String? = null,
+    @SerializedName("table_no") val tableNo: Int? = null
+)
+
 // Cart (client-side only)
 data class CartItem(
     val id: Int,

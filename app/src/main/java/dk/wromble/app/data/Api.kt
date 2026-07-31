@@ -26,6 +26,10 @@ interface WrombleApi {
     @GET("api/menu.php")
     suspend fun menu(@Query("company_id") companyId: Int): MenuResponse
 
+    // Slaar en forudprintet QR-kode (go.php?c=CODE) op -> hvilket firma den peger paa
+    @GET("api/qr-resolve.php")
+    suspend fun qrResolve(@Query("code") code: String): QrResolveResponse
+
     // --- Auth ---
     @POST("api/login.php")
     suspend fun login(@Body body: Map<String, @JvmSuppressWildcards Any>): LoginResponse

@@ -29,9 +29,11 @@ import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.BarcodeResult
 import com.journeyapps.barcodescanner.BarcodeView
 import com.journeyapps.barcodescanner.DefaultDecoderFactory
+import dk.wromble.app.data.Api
 import dk.wromble.app.data.Restaurant
 import dk.wromble.app.ui.MainViewModel
 import dk.wromble.app.ui.theme.WrombleRed
+import kotlinx.coroutines.launch
 
 // Parse a scanned Wromble code -> (restaurant, table number or null)
 private fun matchScan(raw: String, restaurants: List<Restaurant>): Pair<Restaurant, Int?>? {
@@ -65,6 +67,17 @@ private fun matchScan(raw: String, restaurants: List<Restaurant>): Pair<Restaura
     return match?.let { it to table }
 }
 
+// Genkend en forudprintet kode (wromble.dk/QR/go.php?c=CODE) og returner selve koden,
+// saa den kan slaas op paa serveren (api/qr-resolve.php).
+private fun extractPreprintCode(raw: String): String? {
+    val uri = runCatching { Uri.parse(raw.trim()) }.getOrNull() ?: return null
+    if (uri.host?.contains("wromble.dk", ignoreCase = true) != true) return null
+    val isGo = (uri.path ?: "").contains("go.php", ignoreCase = true) || uri.getQueryParameter("c") != null
+    if (!isGo) return null
+    val code = uri.getQueryParameter("c")?.trim() ?: return null
+    return if (code.matches(Regex("^[A-Za-z0-9]{4,20}$"))) code.uppercase() else null
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QrScannerScreen(nav: androidx.navigation.NavController, vm: MainViewModel, mode: String) {
@@ -84,17 +97,36 @@ fun QrScannerScreen(nav: androidx.navigation.NavController, vm: MainViewModel, m
 
     LaunchedEffect(vm.restaurants.size) { if (vm.restaurants.isEmpty()) vm.loadHome() }
 
+    val scope = rememberCoroutineScope()
+
     fun onScanned(raw: String) {
         if (handled.value) return
         val result = matchScan(raw, vm.restaurants)
-        if (result == null) {
-            error = "Ukendt QR-kode. Prøv igen."
+        if (result != null) {
+            handled.value = true
+            val (r, table) = result
+            val route = if (table != null) "restaurant/${r.id}?table=$table" else "restaurant/${r.id}"
+            nav.navigate(route) { popUpTo("main") }
             return
         }
-        handled.value = true
-        val (r, table) = result
-        val route = if (table != null) "restaurant/${r.id}?table=$table" else "restaurant/${r.id}"
-        nav.navigate(route) { popUpTo("main") }
+        // Forudprintet kode? Slaa den op paa serveren og aabn firmaet.
+        val code = extractPreprintCode(raw)
+        if (code != null) {
+            handled.value = true
+            scope.launch {
+                val resolved = runCatching { Api.service.qrResolve(code) }.getOrNull()
+                if (resolved?.linked == true && resolved.companyId > 0) {
+                    val route = if (resolved.tableNo != null) "restaurant/${resolved.companyId}?table=${resolved.tableNo}"
+                                else "restaurant/${resolved.companyId}"
+                    nav.navigate(route) { popUpTo("main") }
+                } else {
+                    error = "Denne QR er ikke aktiveret endnu."
+                    handled.value = false
+                }
+            }
+            return
+        }
+        error = "Ukendt QR-kode. Prøv igen."
     }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
