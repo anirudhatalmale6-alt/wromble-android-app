@@ -79,8 +79,9 @@ fun LoginScreen(nav: NavController) {
 
     // Vis kunde-login (false) eller forretning/chauffoer-portal (true)
     var staffMode by remember { mutableStateOf(false) }
-    // Fold email/adgangskode-formen ud (ellers vises kun de runde login-knapper)
-    var showEmailForm by remember { mutableStateOf(false) }
+    // Email/adgangskode-felterne vises som udgangspunkt (kunden oenskede dem synlige med det
+    // samme, ikke skjult bag mail-ikonet). Mail-ikonet beholdes stadig som genvej.
+    var showEmailForm by remember { mutableStateOf(true) }
 
     // "Velkommen tilbage": husket sidste kunde-login (navn, email, metode)
     val lastLogin = remember { Session.lastLogin(ctx) }
@@ -276,7 +277,7 @@ fun LoginScreen(nav: NavController) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             SocialCircle("Apple", R.drawable.ic_apple, Color.Black) { startAppleLogin() }
                             SocialCircle("Facebook", R.drawable.ic_facebook_f, Color(0xFF1877F2)) { startFacebookLogin() }
-                            SocialCircle("Email", R.drawable.ic_email, WrombleRed) { showEmailForm = !showEmailForm }
+                            SocialCircle("Email", R.drawable.ic_email, WrombleRed) { showEmailForm = true }
                         }
 
                         if (showEmailForm) {
