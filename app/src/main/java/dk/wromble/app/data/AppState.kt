@@ -52,6 +52,24 @@ object Session {
         user = null
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
     }
+
+    // Sidste kunde-login huskes ogsaa EFTER log ud (i en separat prefs-fil, saa
+    // clear() ovenfor ikke sletter den), saa "Velkommen tilbage"-skaermen kan vises.
+    private const val LAST_PREFS = "wromble_lastlogin"
+    fun saveLastLogin(ctx: Context, name: String, email: String, method: String) {
+        if (email.isBlank()) return
+        ctx.getSharedPreferences(LAST_PREFS, Context.MODE_PRIVATE).edit()
+            .putString("name", name).putString("email", email).putString("method", method).apply()
+    }
+    // Returnerer (navn, email, metode) hvis der er et tidligere kunde-login, ellers null.
+    fun lastLogin(ctx: Context): Triple<String, String, String>? {
+        val p = ctx.getSharedPreferences(LAST_PREFS, Context.MODE_PRIVATE)
+        val email = p.getString("email", null) ?: return null
+        return Triple(p.getString("name", "") ?: "", email, p.getString("method", "email") ?: "email")
+    }
+    fun clearLastLogin(ctx: Context) {
+        ctx.getSharedPreferences(LAST_PREFS, Context.MODE_PRIVATE).edit().clear().apply()
+    }
 }
 
 // Cart manager (client-side, mirrors iOS CartManager)
