@@ -110,8 +110,19 @@ class OrderPollService : Service() {
                         .filter { it.isNew }                       // kun nye/afventende ordrer
                         .map { it.id to "Ny ordre #${it.id}" }
                 } else {
-                    Api.service.driverOrders(s.id, s.companyId).orders
-                        .map { it.id to "Ny leverance #${it.id}" }
+                    val orders = Api.service.driverOrders(s.id, s.companyId).orders
+                    // Send chaufføerens GPS med (ogsaa i baggrunden) saa kundens live-kort +
+                    // ETA er praecise mens der er aktive leverancer. Uden dette opdateres
+                    // positionen kun mens chauffoer-skaermen er aaben -> kunden saa en fast bil.
+                    if (orders.isNotEmpty()) {
+                        runCatching {
+                            LocationProvider.lastKnown(this@OrderPollService)?.let { loc ->
+                                Api.service.driverLocation(mapOf(
+                                    "rider_id" to s.id, "latitude" to loc.latitude, "longitude" to loc.longitude))
+                            }
+                        }
+                    }
+                    orders.map { it.id to "Ny leverance #${it.id}" }
                 }
             } catch (_: Exception) { emptyList() }
 

@@ -69,6 +69,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Kundens live ordre-banner paa laast skaerm (Android-pendant til iOS Live Activity). -->
+        <service
+            android:name=".data.OrderTrackingService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

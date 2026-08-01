@@ -98,7 +98,11 @@ data class OrderStatus(
     @SerializedName("rider_lat") val riderLat: Double = 0.0,
     @SerializedName("rider_lng") val riderLng: Double = 0.0,
     @SerializedName("rider_live") val riderLive: Boolean = false,
-    @SerializedName("eta_text") val etaText: String = ""
+    @SerializedName("eta_text") val etaText: String = "",
+    @SerializedName("eta_minutes") val etaMinutes: Int = 0,
+    @SerializedName("rider_distance_m") val riderDistanceM: Int = 0,
+    // "Leveres af" ved levering, "Afhentes hos" ved afhentning (kommer fra serveren).
+    @SerializedName("pickup_label") val pickupLabel: String = ""
 )
 
 // Chat

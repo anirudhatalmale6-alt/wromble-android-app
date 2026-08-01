@@ -95,6 +95,18 @@ class WrombleApp : Application(), ImageLoaderFactory {
             setSound(null, null)
         }
         nm.createNotificationChannel(svc)
+
+        // Kundens LIVE ordre-banner paa laast skaerm (Android-pendant til iOS Live Activity).
+        // LAV vigtighed (fast banner, ingen heads-up/lyd) - trin-lyden spilles af Notifier.
+        val track = NotificationChannel(
+            CH_TRACK, "Live ordre-status", NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Live-banner der følger din ordre fra bekræftet til leveret"
+            setShowBadge(true)
+            enableVibration(false)
+            setSound(null, null)
+        }
+        nm.createNotificationChannel(track)
     }
 
     // Gemmer enhver ukendt (uncaught) crash med enheds-info, saa den kan sendes
@@ -143,6 +155,7 @@ class WrombleApp : Application(), ImageLoaderFactory {
         const val CH_ORDERS = "wromble_orders_v2"   // v2 = lydloes kanal (lyden styres af Notifier.playAlarm)
         const val CH_STATUS = "wromble_status"
         const val CH_SERVICE = "wromble_service"     // fast notifikation for baggrunds-vagten
+        const val CH_TRACK = "wromble_track"         // kundens live ordre-banner
 
         // Er en Activity synlig? Baggrunds-vagten (OrderPollService) bruger dette til at
         // undgaa dobbelt-alarm: er app'en aaben, staar skaermens egen poller for lyden.

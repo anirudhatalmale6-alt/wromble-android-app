@@ -43,6 +43,7 @@ import androidx.navigation.NavController
 import dk.wromble.app.data.Api
 import dk.wromble.app.data.Notifier
 import dk.wromble.app.data.OrderStatus
+import dk.wromble.app.data.OrderTrackingService
 import dk.wromble.app.ui.components.*
 import dk.wromble.app.ui.kr
 import dk.wromble.app.ui.theme.WrombleRed
@@ -96,6 +97,19 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
     val steps = listOf("Modtaget", "Bekræftet", "På vej", "Leveret")
     val stage = status?.stage ?: 0
     val rejected = stage < 0
+
+    // Live ordre-banner paa laast skaerm (Android-pendant til iOS Live Activity): starter
+    // en forgrunds-tjeneste der foelger ordren og opdaterer banneret selv naar app'en er
+    // lukket. Startes én gang naar vi ser en aktiv ordre; tjenesten lukker selv naar
+    // ordren er leveret/afvist.
+    var trackingStarted by remember(orderId) { mutableStateOf(false) }
+    LaunchedEffect(status?.stage) {
+        val s = status ?: return@LaunchedEffect
+        if (!trackingStarted && s.stage in 0..2) {
+            OrderTrackingService.start(ctx, orderId, s.companyName)
+            trackingStarted = true
+        }
+    }
 
     // Behagelig lyd til kunden hver gang ordren rykker et trin frem (fx bekræftet, på vej, leveret).
     var lastStage by remember { mutableStateOf<Int?>(null) }
@@ -184,7 +198,16 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
                     } else {
                         Text(status?.label?.ifBlank { steps.getOrElse(stage) { "" } } ?: steps.getOrElse(stage) { "" },
                             fontWeight = FontWeight.Black, fontSize = 20.sp)
-                        Text("Trin ${stage + 1} af 4", color = Color(0xFF8A8A90), fontSize = 13.sp)
+                        // Live nedtaelling i minutter (jo taettere chaufføeren er via GPS, jo lavere).
+                        val etaMin = status?.etaMinutes ?: 0
+                        if (stage == 2 && etaMin > 0) {
+                            Text("$etaMin min.", color = WrombleRed, fontWeight = FontWeight.Black, fontSize = 26.sp)
+                            Text("til dig", color = Color(0xFF8A8A90), fontSize = 12.sp)
+                        } else if (stage == 2 && status?.etaText?.contains("fremme") == true) {
+                            Text("Næsten fremme", color = WrombleRed, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        } else {
+                            Text("Trin ${stage + 1} af 4", color = Color(0xFF8A8A90), fontSize = 13.sp)
+                        }
                     }
                 }
             }
@@ -246,7 +269,9 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
                     Icon(Icons.Filled.Place, null, tint = WrombleRed, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("Afhentes hos", color = Color(0xFF8A8A90), fontSize = 12.sp)
+                        // "Leveres af" ved levering, "Afhentes hos" ved afhentning.
+                        Text(s.pickupLabel.ifBlank { if (s.isDelivery) "Leveres af" else "Afhentes hos" },
+                            color = Color(0xFF8A8A90), fontSize = 12.sp)
                         Text(s.companyName.ifBlank { "Restaurant" }, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                         Text(s.companyAddress, color = Color(0xFF6B6B72), fontSize = 13.sp)
                     }
