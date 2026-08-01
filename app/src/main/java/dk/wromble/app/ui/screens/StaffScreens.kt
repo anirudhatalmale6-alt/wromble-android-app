@@ -420,7 +420,7 @@ fun DriverDashboardScreen(nav: NavController) {
                 actions = {
                     IconButton(onClick = { showAlarmSettings = true }) { Icon(Icons.Filled.Notifications, "Lyd", tint = WrombleRed) }
                     IconButton(onClick = { nav.navigate("earnings/rider/${session?.id ?: 0}") }) { Icon(Icons.Filled.Payments, "Drikkepenge", tint = WrombleRed) }
-                    IconButton(onClick = { Session.clear(ctx); nav.navigate("login") { popUpTo(0) } }) { Icon(Icons.AutoMirrored.Filled.Logout, "Log ud", tint = WrombleRed) }
+                    IconButton(onClick = { OrderPollService.stop(ctx); Session.clear(ctx); nav.navigate("login") { popUpTo(0) } }) { Icon(Icons.AutoMirrored.Filled.Logout, "Log ud", tint = WrombleRed) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface))
         }
@@ -499,6 +499,7 @@ fun StaffTopBar(title: String, nav: NavController, ctx: android.content.Context)
         title = { Text(title, fontWeight = FontWeight.Bold, maxLines = 1) },
         actions = {
             IconButton(onClick = {
+                OrderPollService.stop(ctx)
                 Session.clear(ctx)
                 nav.navigate("login") { popUpTo(0) }
             }) { Icon(Icons.AutoMirrored.Filled.Logout, "Log ud", tint = WrombleRed) }

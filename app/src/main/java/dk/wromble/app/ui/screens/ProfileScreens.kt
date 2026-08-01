@@ -344,7 +344,7 @@ fun AccountDeletionScreen(nav: NavController) {
                             val r = Api.service.deleteAccount(mapOf(
                                 "user_id" to (user?.id ?: 0), "email" to (user?.email ?: ""), "password" to password))
                             loading = false
-                            if (r.success) { Session.clear(ctx); nav.navigate("login") { popUpTo(0) } }
+                            if (r.success) { OrderPollService.stop(ctx); Session.clear(ctx); nav.navigate("login") { popUpTo(0) } }
                             else msg = r.error ?: "Forkert adgangskode"
                         } catch (_: Exception) { loading = false; msg = "Netværksfejl" }
                     }

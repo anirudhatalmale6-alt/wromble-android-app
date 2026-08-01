@@ -83,6 +83,18 @@ class WrombleApp : Application(), ImageLoaderFactory {
             CH_STATUS, "Ordrestatus", NotificationManager.IMPORTANCE_DEFAULT
         ).apply { description = "Opdateringer om dine bestillinger" }
         nm.createNotificationChannel(status)
+
+        // Fast (lydloes) notifikation for baggrunds-vagten (OrderPollService). LAV vigtighed,
+        // saa den ikke larmer - selve ordre-alarmen kommer via CH_ORDERS + Notifier.playAlarm.
+        val svc = NotificationChannel(
+            CH_SERVICE, "Baggrundsvagt", NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Holder øje med nye ordrer mens app'en er lukket"
+            setShowBadge(false)
+            enableVibration(false)
+            setSound(null, null)
+        }
+        nm.createNotificationChannel(svc)
     }
 
     // Gemmer enhver ukendt (uncaught) crash med enheds-info, saa den kan sendes
@@ -130,5 +142,12 @@ class WrombleApp : Application(), ImageLoaderFactory {
     companion object {
         const val CH_ORDERS = "wromble_orders_v2"   // v2 = lydloes kanal (lyden styres af Notifier.playAlarm)
         const val CH_STATUS = "wromble_status"
+        const val CH_SERVICE = "wromble_service"     // fast notifikation for baggrunds-vagten
+
+        // Er en Activity synlig? Baggrunds-vagten (OrderPollService) bruger dette til at
+        // undgaa dobbelt-alarm: er app'en aaben, staar skaermens egen poller for lyden.
+        @Volatile
+        @JvmStatic
+        var appInForeground: Boolean = false
     }
 }

@@ -65,6 +65,18 @@ class MainActivity : FragmentActivity() {
         handleDeepLink(intent)
     }
 
+    // Forgrunds-flag til baggrunds-vagten: er app'en aaben, staar skaermens egen
+    // poller for lyden, saa OrderPollService springer sin alarm over (ingen dobbelt-lyd).
+    override fun onResume() {
+        super.onResume()
+        WrombleApp.appInForeground = true
+    }
+
+    override fun onStop() {
+        super.onStop()
+        WrombleApp.appInForeground = false
+    }
+
     // Fanger wromble://apple-login?code=... fra Apple web-flowet (Custom Tab) og
     // lader LoginScreen bytte koden til en bruger.
     private fun handleDeepLink(intent: Intent?) {
