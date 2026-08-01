@@ -13,8 +13,8 @@ android {
         applicationId = "com.wromble.order"
         minSdk = 24
         targetSdk = 36
-        versionCode = 52
-        versionName = "2.6.2"
+        versionCode = 53
+        versionName = "2.6.3"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -102,8 +102,8 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-    // Maps (OpenStreetMap – ingen API-noegle noedvendig)
-    implementation("org.osmdroid:osmdroid-android:6.1.18")
+    // Maps (OpenStreetMap – ingen API-noegle noedvendig). 6.1.20 = seneste patch.
+    implementation("org.osmdroid:osmdroid-android:6.1.20")
 
     // QR-scanner (ZXing – ren Java, INGEN native biblioteker, saa app-bundlen
     // ikke laengere kraever native fejlretningssymboler = fjerner Play-advarslen)
