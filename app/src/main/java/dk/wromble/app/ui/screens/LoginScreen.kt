@@ -44,20 +44,23 @@ import dk.wromble.app.ui.clickableNoRipple
 import dk.wromble.app.ui.theme.WrombleRed
 import kotlinx.coroutines.launch
 
-// Wromble-login i moerkt design: mad-collage i toppen + "bottom sheet" med login.
-// Privatkunder faar Apple / Facebook / Email + "Velkommen tilbage" naar de har
-// logget ud. Forretning/chauffoer har deres eget portal-login (link nederst).
+// Wromble-login i lyst design: mad-collage i toppen + hvidt "ark" med login,
+// saa det matcher resten af appens hvide baggrund. Privatkunder faar Apple /
+// Facebook / Email + "Velkommen tilbage" naar de har logget ud. Forretning/
+// chauffoer har deres eget portal-login (link nederst).
 private enum class Role(val label: String, val mode: String) {
     Privat("Privat", "customer"),
     Forretning("Forretning", "company"),
     Chauffor("Chauffør", "rider")
 }
 
-private val SheetBg = Color(0xFF14151B)
-private val ScreenBg = Color(0xFF0D0E12)
-private val FieldBg = Color(0xFF1E1F27)
-private val FieldBorder = Color(0xFF2C2D37)
-private val TextMuted = Color(0xFF9A9AA6)
+// Lyst tema (hvid baggrund som resten af appen)
+private val ScreenBg = Color.White
+private val SheetBg = Color.White
+private val FieldBg = Color(0xFFF4F5F7)
+private val FieldBorder = Color(0xFFE2E4EA)
+private val TextDark = Color(0xFF15161C)
+private val TextMuted = Color(0xFF6C6D78)
 
 @Composable
 fun LoginScreen(nav: NavController) {
@@ -178,42 +181,46 @@ fun LoginScreen(nav: NavController) {
         }
     }
 
-    Box(Modifier.fillMaxSize().background(ScreenBg)) {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    // Fylder hele skaermen: mad-collage i toppen (fuld bredde, kant-til-kant) og
+    // et hvidt ark der fylder resten hele vejen ned til bunden.
+    Column(Modifier.fillMaxSize().background(ScreenBg)) {
 
-            // ---------- Mad-collage (hero) der ruller langsomt ----------
-            Box(Modifier.fillMaxWidth().height(300.dp).clipToBounds()) {
-                Row(
-                    Modifier.fillMaxSize().padding(start = 12.dp, end = 12.dp, top = 14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    ScrollingFoodColumn(
-                        listOf(R.drawable.login_pizza, R.drawable.login_dessert, R.drawable.login_burger),
-                        up = true, durationMs = 26000, modifier = Modifier.weight(1f))
-                    ScrollingFoodColumn(
-                        listOf(R.drawable.login_coffee, R.drawable.login_icecream, R.drawable.login_pizza),
-                        up = false, durationMs = 33000, modifier = Modifier.weight(1f))
-                    ScrollingFoodColumn(
-                        listOf(R.drawable.login_burger, R.drawable.login_coffee, R.drawable.login_dessert),
-                        up = true, durationMs = 29000, modifier = Modifier.weight(1f))
-                }
-                // Blød overgang ned mod bottom-sheet'en
-                Box(Modifier.fillMaxWidth().height(90.dp).align(Alignment.BottomCenter)
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, ScreenBg))))
-            }
-
-            // ---------- Bottom sheet ----------
-            Surface(
-                color = SheetBg,
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                modifier = Modifier.fillMaxWidth().offset(y = (-24).dp)
+        // ---------- Mad-collage (hero) der ruller langsomt ----------
+        Box(Modifier.fillMaxWidth().height(288.dp).clipToBounds()) {
+            Row(
+                Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Column(Modifier.fillMaxWidth().padding(start = 26.dp, end = 26.dp, top = 26.dp, bottom = 34.dp)) {
+                ScrollingFoodColumn(
+                    listOf(R.drawable.login_pizza, R.drawable.login_dessert, R.drawable.login_burger),
+                    up = true, durationMs = 26000, modifier = Modifier.weight(1f))
+                ScrollingFoodColumn(
+                    listOf(R.drawable.login_coffee, R.drawable.login_icecream, R.drawable.login_pizza),
+                    up = false, durationMs = 33000, modifier = Modifier.weight(1f))
+                ScrollingFoodColumn(
+                    listOf(R.drawable.login_burger, R.drawable.login_coffee, R.drawable.login_dessert),
+                    up = true, durationMs = 29000, modifier = Modifier.weight(1f))
+            }
+            // Blød overgang ned mod det hvide ark
+            Box(Modifier.fillMaxWidth().height(96.dp).align(Alignment.BottomCenter)
+                .background(Brush.verticalGradient(listOf(Color.Transparent, ScreenBg))))
+        }
 
-                    Text("wromble", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Black,
-                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        // ---------- Hvidt ark (fylder resten af skaermen) ----------
+        Surface(
+            color = SheetBg,
+            shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
+            modifier = Modifier.fillMaxWidth().weight(1f).offset(y = (-26).dp)
+        ) {
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                    .padding(start = 26.dp, end = 26.dp, top = 26.dp, bottom = 40.dp)
+            ) {
 
-                    Spacer(Modifier.height(14.dp))
+                Text("wromble", color = TextDark, fontSize = 26.sp, fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+
+                Spacer(Modifier.height(14.dp))
 
                     if (staffMode) {
                         StaffLogin(
@@ -229,7 +236,7 @@ fun LoginScreen(nav: NavController) {
                         val methodLabel = when (lastLogin.third) {
                             "apple" -> "Apple"; "facebook" -> "Facebook"; else -> "email"
                         }
-                        Text("Velkommen\ntilbage, $first", color = Color.White, fontSize = 27.sp,
+                        Text("Velkommen\ntilbage, $first", color = TextDark, fontSize = 27.sp,
                             fontWeight = FontWeight.ExtraBold, lineHeight = 32.sp)
                         Spacer(Modifier.height(8.dp))
                         Text("Du loggede sidst ind med $methodLabel", color = TextMuted, fontSize = 14.5.sp)
@@ -261,7 +268,7 @@ fun LoginScreen(nav: NavController) {
                     } else {
                         // ---------- Fuldt login / opret ----------
                         Text(if (isLogin) "Log ind eller\nopret dig" else "Opret din\nkonto",
-                            color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.ExtraBold, lineHeight = 32.sp)
+                            color = TextDark, fontSize = 27.sp, fontWeight = FontWeight.ExtraBold, lineHeight = 32.sp)
                         Spacer(Modifier.height(8.dp))
                         Text("Bestil mad fra dine lokale favoritter", color = TextMuted, fontSize = 14.5.sp)
 
@@ -312,7 +319,6 @@ fun LoginScreen(nav: NavController) {
                                 staffMode = true; role = Role.Forretning; error = ""; showEmailForm = false
                             })
                     }
-                }
             }
         }
     }
@@ -365,16 +371,16 @@ private fun SocialCircle(label: String, iconRes: Int, bg: Color, onClick: () -> 
                 modifier = Modifier.size(28.dp))
         }
         Spacer(Modifier.height(8.dp))
-        Text(label, color = Color(0xFFC9C9D2), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(label, color = Color(0xFF3A3B44), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 private fun DividerOr() {
     Row(Modifier.fillMaxWidth().padding(vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-        Divider(Modifier.weight(1f), color = Color(0xFF2A2B33))
-        Text("  eller  ", color = Color(0xFF7C7C86), fontSize = 13.sp)
-        Divider(Modifier.weight(1f), color = Color(0xFF2A2B33))
+        Divider(Modifier.weight(1f), color = FieldBorder)
+        Text("  eller  ", color = TextMuted, fontSize = 13.sp)
+        Divider(Modifier.weight(1f), color = FieldBorder)
     }
 }
 
@@ -397,7 +403,7 @@ private fun SecondaryButton(text: String, onClick: () -> Unit) {
         Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp))
             .background(FieldBg).clickableNoRipple { onClick() }.padding(vertical = 16.dp),
         contentAlignment = Alignment.Center
-    ) { Text(text, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.5.sp) }
+    ) { Text(text, color = TextDark, fontWeight = FontWeight.Bold, fontSize = 15.5.sp) }
 }
 
 @Composable
@@ -413,7 +419,7 @@ private fun DarkField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = FieldBg, unfocusedContainerColor = FieldBg,
             focusedBorderColor = WrombleRed, unfocusedBorderColor = FieldBorder,
-            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+            focusedTextColor = TextDark, unfocusedTextColor = TextDark,
             focusedLabelColor = WrombleRed, unfocusedLabelColor = TextMuted,
             cursorColor = WrombleRed
         )
@@ -429,7 +435,7 @@ private fun StaffLogin(
     onSubmit: () -> Unit, onBack: () -> Unit
 ) {
     Text(if (role == Role.Forretning) "Forretnings-login" else "Chauffør-login",
-        color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+        color = TextDark, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
     Spacer(Modifier.height(4.dp))
     Text(if (role == Role.Forretning) "Se og håndter indkomne ordrer" else "Se dine aktive leverancer",
         color = TextMuted, fontSize = 14.sp)
