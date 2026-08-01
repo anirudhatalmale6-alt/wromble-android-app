@@ -47,6 +47,7 @@ import dk.wromble.app.ui.components.*
 import dk.wromble.app.ui.kr
 import dk.wromble.app.ui.theme.WrombleRed
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
 import org.osmdroid.util.GeoPoint
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,7 +78,12 @@ fun TrackingScreen(nav: NavController, orderId: Int) {
     LaunchedEffect(orderId, reloadKey) {
         while (true) {
             try {
-                status = Api.service.orderStatus(orderId)
+                // Hard timeout saa skaermen ALDRIG kan haenge paa "Henter ..." (fx ved
+                // kold opstart hvis en forespoergsel skulle blive haengende). Naar tiden
+                // udloeber, kastes en TimeoutCancellationException -> fanges nedenfor ->
+                // firstLoadDone bliver true -> vi viser enten data eller "Proev igen".
+                val s = withTimeout(15000) { Api.service.orderStatus(orderId) }
+                status = s
                 loadFailed = false
             } catch (_: Exception) {
                 if (status == null) loadFailed = true

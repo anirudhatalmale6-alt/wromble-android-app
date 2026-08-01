@@ -13,8 +13,8 @@ android {
         applicationId = "com.wromble.order"
         minSdk = 24
         targetSdk = 36
-        versionCode = 54
-        versionName = "2.6.4"
+        versionCode = 55
+        versionName = "2.6.5"
         vectorDrawables { useSupportLibrary = true }
     }
 
