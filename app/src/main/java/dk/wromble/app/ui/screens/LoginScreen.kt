@@ -1,5 +1,11 @@
 package dk.wromble.app.ui.screens
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -13,9 +19,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -171,22 +181,25 @@ fun LoginScreen(nav: NavController) {
     Box(Modifier.fillMaxSize().background(ScreenBg)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
 
-            // ---------- Mad-collage (hero) ----------
-            Row(
-                Modifier.fillMaxWidth().height(292.dp).padding(start = 14.dp, end = 14.dp, top = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FoodTile(R.drawable.login_pizza, Modifier.weight(1f).fillMaxWidth())
-                    FoodTile(R.drawable.login_burger, Modifier.weight(1f).fillMaxWidth())
+            // ---------- Mad-collage (hero) der ruller langsomt ----------
+            Box(Modifier.fillMaxWidth().height(300.dp).clipToBounds()) {
+                Row(
+                    Modifier.fillMaxSize().padding(start = 12.dp, end = 12.dp, top = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    ScrollingFoodColumn(
+                        listOf(R.drawable.login_pizza, R.drawable.login_dessert, R.drawable.login_burger),
+                        up = true, durationMs = 26000, modifier = Modifier.weight(1f))
+                    ScrollingFoodColumn(
+                        listOf(R.drawable.login_coffee, R.drawable.login_icecream, R.drawable.login_pizza),
+                        up = false, durationMs = 33000, modifier = Modifier.weight(1f))
+                    ScrollingFoodColumn(
+                        listOf(R.drawable.login_burger, R.drawable.login_coffee, R.drawable.login_dessert),
+                        up = true, durationMs = 29000, modifier = Modifier.weight(1f))
                 }
-                Column(Modifier.weight(1f)) {
-                    FoodTile(R.drawable.login_coffee, Modifier.fillMaxSize())
-                }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FoodTile(R.drawable.login_dessert, Modifier.weight(1f).fillMaxWidth())
-                    FoodTile(R.drawable.login_icecream, Modifier.weight(1f).fillMaxWidth())
-                }
+                // Blød overgang ned mod bottom-sheet'en
+                Box(Modifier.fillMaxWidth().height(90.dp).align(Alignment.BottomCenter)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, ScreenBg))))
             }
 
             // ---------- Bottom sheet ----------
@@ -314,6 +327,31 @@ private fun FoodTile(resId: Int, modifier: Modifier) {
         contentScale = ContentScale.Crop,
         modifier = modifier.clip(RoundedCornerShape(20.dp))
     )
+}
+
+// En kolonne af mad-billeder der ruller uendeligt og langsomt (op eller ned).
+// Der tegnes to saet under hinanden, saa loopet er soemloest.
+@Composable
+private fun ScrollingFoodColumn(images: List<Int>, up: Boolean, durationMs: Int, modifier: Modifier) {
+    val infinite = rememberInfiniteTransition(label = "foodcol")
+    val t by infinite.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(durationMs, easing = LinearEasing), RepeatMode.Restart),
+        label = "scroll"
+    )
+    val tile = 150.dp
+    val gap = 10.dp
+    val setPx = with(LocalDensity.current) { ((tile + gap) * images.size).toPx() }
+    Column(
+        modifier.graphicsLayer { translationY = if (up) -t * setPx else (t - 1f) * setPx }
+    ) {
+        repeat(2) {
+            images.forEach { res ->
+                FoodTile(res, Modifier.fillMaxWidth().height(tile))
+                Spacer(Modifier.height(gap))
+            }
+        }
+    }
 }
 
 @Composable
