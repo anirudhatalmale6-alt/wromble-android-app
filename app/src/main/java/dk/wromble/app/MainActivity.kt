@@ -45,6 +45,10 @@ class MainActivity : FragmentActivity() {
             runCatching { notifPermLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) }
         }
 
+        // Allerede logget ind: sørg for at FCM push-token er registreret hos serveren, saa
+        // notifikationer kommer på laast skaerm (ogsaa naar app'en er lukket).
+        if (Session.user != null) dk.wromble.app.data.PushTokens.register(this)
+
         val lockAtStart = Settings.biometricEnabled && Session.user != null && canUseBiometric(this)
 
         setContent {

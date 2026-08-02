@@ -38,7 +38,7 @@ import dk.wromble.app.R
 import dk.wromble.app.data.Api
 import dk.wromble.app.data.AppleAuth
 import dk.wromble.app.data.FacebookAuth
-import dk.wromble.app.data.OrderPollService
+import dk.wromble.app.data.PushTokens
 import dk.wromble.app.data.Session
 import dk.wromble.app.data.UserProfile
 import dk.wromble.app.ui.clickableNoRipple
@@ -96,9 +96,9 @@ fun LoginScreen(nav: NavController) {
             u.role.startsWith("chauff") || u.type == "rider" -> "driver"
             else -> "main"
         }
-        // Forretning/chauffoer: start baggrunds-vagten saa der ogsaa kommer lyd +
-        // notifikation paa laast skaerm (uden at app'en behoever staa aaben).
-        if (dest == "company" || dest == "driver") OrderPollService.start(ctx)
+        // Registrér FCM push-token for den nye bruger, saa der kommer lyd + notifikation
+        // paa laast skaerm (ogsaa naar app'en er helt lukket) - kunde, forretning og chauffoer.
+        PushTokens.register(ctx)
         nav.navigate(dest) { popUpTo("login") { inclusive = true } }
     }
 

@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -13,8 +14,8 @@ android {
         applicationId = "com.wromble.order"
         minSdk = 24
         targetSdk = 36
-        versionCode = 57
-        versionName = "2.6.7"
+        versionCode = 58
+        versionName = "2.6.8"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -89,6 +90,10 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.7.7")
+
+    // Firebase Cloud Messaging (push - lyd/notifikation paa laast skaerm, app lukket)
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
 
     // Networking
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

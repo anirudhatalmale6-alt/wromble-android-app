@@ -13,9 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
-import dk.wromble.app.data.OrderPollService
 import dk.wromble.app.data.Session
 import dk.wromble.app.data.Settings
 import dk.wromble.app.ui.brandGradient
@@ -23,7 +21,6 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(nav: NavController) {
-    val ctx = LocalContext.current
     var visible by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (visible) 1f else 0.7f,
@@ -43,8 +40,6 @@ fun SplashScreen(nav: NavController) {
             u.role == "chauffør" || u.role == "chauffoer" || u.type == "rider" -> "driver"
             else -> "main"
         }
-        // Allerede logget ind som forretning/chauffoer paa cold start: start baggrunds-vagten.
-        if (dest == "company" || dest == "driver") OrderPollService.start(ctx)
         nav.navigate(dest) { popUpTo("splash") { inclusive = true } }
     }
 

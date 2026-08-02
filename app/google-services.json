@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "932321786127",
+    "project_id": "wromble-9d7f9",
+    "storage_bucket": "wromble-9d7f9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:932321786127:android:358f2a55a95b0f34a3e67a",
+        "android_client_info": {
+          "package_name": "com.wromble.order"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmgYGUuVWCPAFZZNCy5FdmzDgK78xBrhc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
