@@ -72,42 +72,60 @@ fun ProfileScreen(nav: NavController) {
             }
         }
 
-        Section("Min konto")
-        if (!isGuest) NavRow(Icons.Filled.Person, "Rediger profil") { nav.navigate("profile/edit") }
-
         var showSound by remember { mutableStateOf(false) }
-        Section("Indstillinger")
-        ToggleRow(Icons.Filled.Notifications, "Notifikationer", Settings.notificationsEnabled) {
-            Settings.setNotifications(ctx, it)
-        }
-        NavRow(Icons.Filled.MusicNote, "Lyd ved ordre-opdatering") { showSound = true }
-        ToggleRow(Icons.Filled.LocationOn, "Placering", Settings.locationEnabled) {
-            Settings.setLocation(ctx, it)
-        }
-        if (showSound) AlarmSettingsDialog(showDuration = false) { showSound = false }
-        if (canUseBiometric(ctx)) {
-            ToggleRow(Icons.Filled.Fingerprint, "Lås app med biometri", Settings.biometricEnabled) {
-                Settings.setBiometric(ctx, it)
+
+        if (!isGuest) {
+            Section("Min konto")
+            SettingsGroup {
+                NavRow(Icons.Filled.Person, "Rediger profil") { nav.navigate("profile/edit") }
             }
         }
 
+        Section("Indstillinger")
+        SettingsGroup {
+            ToggleRow(Icons.Filled.Notifications, "Notifikationer", Settings.notificationsEnabled) {
+                Settings.setNotifications(ctx, it)
+            }
+            RowDivider()
+            NavRow(Icons.Filled.MusicNote, "Lyd ved ordre-opdatering") { showSound = true }
+            RowDivider()
+            ToggleRow(Icons.Filled.LocationOn, "Placering", Settings.locationEnabled) {
+                Settings.setLocation(ctx, it)
+            }
+            if (canUseBiometric(ctx)) {
+                RowDivider()
+                ToggleRow(Icons.Filled.Fingerprint, "Lås app med biometri", Settings.biometricEnabled) {
+                    Settings.setBiometric(ctx, it)
+                }
+            }
+        }
+        if (showSound) AlarmSettingsDialog(showDuration = false) { showSound = false }
+
         Section("Wromble")
-        NavRow(Icons.Filled.MailOutline, "Kontakt os") { nav.navigate("contact") }
-        NavRow(Icons.Filled.Handshake, "Bliv partner") { nav.navigate("partner") }
-        NavRow(Icons.Filled.Work, "Job hos Wromble") { nav.navigate("jobs") }
-
-        Section("Del & support")
-        NavRow(Icons.Filled.Share, "Del appen") { shareApp() }
-        NavRow(Icons.Filled.PrivacyTip, "Privatlivspolitik") { openUrl("$BASE_URL/privacy-policy/app.php") }
-        NavRow(Icons.Filled.Description, "Vilkår") { openUrl("$BASE_URL/terms/app.php") }
-
-        Section("Om")
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
-            Text("Version", modifier = Modifier.weight(1f), color = Color(0xFF6B6B72))
-            Text("${dk.wromble.app.BuildConfig.VERSION_NAME} (${dk.wromble.app.BuildConfig.VERSION_CODE})", color = Color(0xFF6B6B72))
+        SettingsGroup {
+            NavRow(Icons.Filled.MailOutline, "Kontakt os") { nav.navigate("contact") }
+            RowDivider()
+            NavRow(Icons.Filled.Handshake, "Bliv partner") { nav.navigate("partner") }
+            RowDivider()
+            NavRow(Icons.Filled.Work, "Job hos Wromble") { nav.navigate("jobs") }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Section("Del & support")
+        SettingsGroup {
+            NavRow(Icons.Filled.Share, "Del appen") { shareApp() }
+            RowDivider()
+            NavRow(Icons.Filled.PrivacyTip, "Privatlivspolitik") { openUrl("$BASE_URL/privacy-policy/app.php") }
+            RowDivider()
+            NavRow(Icons.Filled.Description, "Vilkår") { openUrl("$BASE_URL/terms/app.php") }
+        }
+
+        Spacer(Modifier.height(20.dp))
+        Text("Wromble ${dk.wromble.app.BuildConfig.VERSION_NAME} (${dk.wromble.app.BuildConfig.VERSION_CODE})",
+            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+            color = Color(0xFFB0B0B6), fontSize = 12.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+
+        Spacer(Modifier.height(8.dp))
         if (!isGuest) {
             OutlinedButton(
                 onClick = { Session.clear(ctx); nav.navigate("login") { popUpTo(0) } },
@@ -130,14 +148,34 @@ fun ProfileScreen(nav: NavController) {
 
 @Composable
 private fun Section(title: String) {
-    Text(title, Modifier.padding(start = 20.dp, top = 18.dp, bottom = 4.dp),
+    Text(title, Modifier.padding(start = 24.dp, top = 22.dp, bottom = 8.dp),
         fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF8A8A90))
+}
+
+// Grupperer rækker i ét afrundet kort (iOS-agtig "grouped list") så siden
+// virker mere rolig og overskuelig – rent visuelt, ingen ændret funktion.
+@Composable
+private fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(1.dp)
+    ) { Column(content = content) }
+}
+
+@Composable
+private fun RowDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 56.dp),
+        thickness = 0.7.dp, color = Color(0x14000000)
+    )
 }
 
 @Composable
 private fun NavRow(icon: ImageVector, label: String, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clickableNoRipple(onClick).padding(horizontal = 20.dp, vertical = 14.dp),
+        Modifier.fillMaxWidth().clickableNoRipple(onClick).padding(horizontal = 16.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, null, tint = WrombleRed)
@@ -150,7 +188,7 @@ private fun NavRow(icon: ImageVector, label: String, onClick: () -> Unit) {
 @Composable
 private fun ToggleRow(icon: ImageVector, label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, null, tint = WrombleRed)

@@ -62,6 +62,25 @@ private fun Tf(value: String, onChange: (String) -> Unit, label: String,
     )
 }
 
+// Samler input-felterne i ét afrundet kort, så en formular med mange felter
+// virker mere rolig og overskuelig. Rent visuelt – funktionen er uændret.
+@Composable
+private fun FieldCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = 1.dp,
+        shadowElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+    ) { Column(Modifier.padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 4.dp), content = content) }
+}
+
+@Composable
+private fun FormIntro(text: String) {
+    Text(text, color = Color(0xFF8A8A90), fontSize = 14.sp,
+        modifier = Modifier.padding(bottom = 16.dp))
+}
+
 @Composable
 private fun SubmitButton(text: String, loading: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
     Button(onClick = onClick, enabled = enabled && !loading,
@@ -115,16 +134,21 @@ fun EditProfileScreen(nav: NavController) {
 
     FormScaffold("Rediger profil", nav) {
         if (saved) { SuccessView("Din profil er opdateret", nav); return@FormScaffold }
-        Tf(firstname, { firstname = it }, "Fornavn")
-        Tf(lastname, { lastname = it }, "Efternavn")
-        Tf(adress, { adress = it }, "Adresse")
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.weight(1f)) { Tf(zipcode, { zipcode = it }, "Postnr.", KeyboardType.Number) }
-            Box(Modifier.weight(2f)) { Tf(city, { city = it }, "By") }
+        FormIntro("Dine oplysninger bruges til levering og kontakt.")
+        FieldCard {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.weight(1f)) { Tf(firstname, { firstname = it }, "Fornavn") }
+                Box(Modifier.weight(1f)) { Tf(lastname, { lastname = it }, "Efternavn") }
+            }
+            Tf(adress, { adress = it }, "Adresse")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.weight(1f)) { Tf(zipcode, { zipcode = it }, "Postnr.", KeyboardType.Number) }
+                Box(Modifier.weight(2f)) { Tf(city, { city = it }, "By") }
+            }
+            Tf(phone, { phone = it }, "Telefon", KeyboardType.Phone)
+            OutlinedTextField(email, {}, label = { Text("E-mail") }, enabled = false,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), shape = RoundedCornerShape(12.dp))
         }
-        Tf(phone, { phone = it }, "Telefon", KeyboardType.Phone)
-        OutlinedTextField(email, {}, label = { Text("E-mail") }, enabled = false,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), shape = RoundedCornerShape(12.dp))
         if (msg.isNotBlank()) { Text(msg, color = WrombleRed); Spacer(Modifier.height(8.dp)) }
         SubmitButton("Gem", loading) {
             val id = user?.id ?: 0
@@ -160,11 +184,16 @@ fun ContactScreen(nav: NavController) {
 
     FormScaffold("Kontakt os", nav) {
         if (done) { SuccessView("Vi vender tilbage hurtigst muligt", nav); return@FormScaffold }
-        Tf(name, { name = it }, "Navn")
-        Tf(email, { email = it }, "E-mail", KeyboardType.Email)
-        Tf(phone, { phone = it }, "Telefon", KeyboardType.Phone)
-        Tf(subject, { subject = it }, "Emne")
-        Tf(message, { message = it }, "Besked", lines = 4)
+        FormIntro("Skriv til os – vi vender tilbage hurtigst muligt.")
+        FieldCard {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.weight(1f)) { Tf(name, { name = it }, "Navn") }
+                Box(Modifier.weight(1f)) { Tf(phone, { phone = it }, "Telefon", KeyboardType.Phone) }
+            }
+            Tf(email, { email = it }, "E-mail", KeyboardType.Email)
+            Tf(subject, { subject = it }, "Emne")
+            Tf(message, { message = it }, "Besked", lines = 4)
+        }
         SubmitButton("Send", loading, enabled = name.isNotBlank() && message.isNotBlank()) {
             loading = true
             scope.launch {
@@ -193,12 +222,17 @@ fun PartnerScreen(nav: NavController) {
 
     FormScaffold("Bliv partner", nav) {
         if (done) { SuccessView("Tak for din interesse – vi kontakter dig", nav); return@FormScaffold }
-        Tf(company, { company = it }, "Virksomhed")
-        Tf(contact, { contact = it }, "Kontaktperson")
-        Tf(email, { email = it }, "E-mail", KeyboardType.Email)
-        Tf(phone, { phone = it }, "Telefon", KeyboardType.Phone)
-        Tf(city, { city = it }, "By")
-        Tf(message, { message = it }, "Besked", lines = 3)
+        FormIntro("Vil du sælge via Wromble? Udfyld, så kontakter vi dig.")
+        FieldCard {
+            Tf(company, { company = it }, "Virksomhed")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.weight(1f)) { Tf(contact, { contact = it }, "Kontaktperson") }
+                Box(Modifier.weight(1f)) { Tf(city, { city = it }, "By") }
+            }
+            Tf(email, { email = it }, "E-mail", KeyboardType.Email)
+            Tf(phone, { phone = it }, "Telefon", KeyboardType.Phone)
+            Tf(message, { message = it }, "Besked", lines = 3)
+        }
         SubmitButton("Send", loading, enabled = company.isNotBlank() && email.isNotBlank()) {
             loading = true
             scope.launch {
