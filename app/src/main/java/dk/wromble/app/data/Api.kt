@@ -61,6 +61,10 @@ interface WrombleApi {
     @POST("api/app-tip-checkout.php")
     suspend fun tipCheckout(@Body body: Map<String, @JvmSuppressWildcards Any>): TipCheckoutResponse
 
+    // Online betaling for selve ordren (Stripe Connect split via order-checkout.php)
+    @POST("api/order-checkout.php")
+    suspend fun orderCheckout(@Body body: Map<String, @JvmSuppressWildcards Any>): OrderCheckoutResponse
+
     // --- Profile (customer) ---
     @GET("api/app-user-profile.php")
     suspend fun userProfile(@Query("user_id") userId: Int): CustomerProfileResponse

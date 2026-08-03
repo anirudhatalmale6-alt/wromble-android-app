@@ -269,6 +269,11 @@ data class TipCheckoutResponse(
     @SerializedName("checkout_url") val checkoutUrl: String? = null,
     val error: String? = null
 )
+data class OrderCheckoutResponse(
+    @SerializedName("checkout_url") val checkoutUrl: String? = null,
+    @SerializedName("needs_onboarding") val needsOnboarding: Boolean = false,
+    val error: String? = null
+)
 data class BusyResponse(val busy: Int = 0)
 data class AutoAcceptResponse(@SerializedName("auto_accept") val autoAccept: Int = 0)
 data class AlarmResponse(@SerializedName("alarm_seconds") val alarmSeconds: Int = 5)

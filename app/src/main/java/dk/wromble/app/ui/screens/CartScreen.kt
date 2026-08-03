@@ -191,6 +191,22 @@ fun CartScreen(nav: NavController, vm: MainViewModel) {
                     // placedOrderId er sat, saa Scaffold'ens bottomBar ikke aendres
                     // i samme frame som skaermen skifter (undgaar Compose-crash).
                     placedOrderId = oid   // skifter til kvitteringsskaermen
+                    // Ved online betaling: aabn Stripe Checkout (kort/MobilePay), saa kunden
+                    // betaler nu. Wromble modtager beloebet og splitter via Connect server-side.
+                    if (payment == 1) {
+                        runCatching {
+                            val co = Api.service.orderCheckout(mapOf("order_id" to oid))
+                            val url = co.checkoutUrl
+                            if (!url.isNullOrBlank()) {
+                                ctx.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(url)
+                                    ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
+                        }
+                    }
                 } else {
                     error = "Kunne ikke afgive bestillingen. Prøv igen."
                 }
