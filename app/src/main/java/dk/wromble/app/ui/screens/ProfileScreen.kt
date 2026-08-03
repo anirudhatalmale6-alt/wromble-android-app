@@ -36,6 +36,8 @@ fun ProfileScreen(nav: NavController) {
     val ctx = LocalContext.current
     val user = Session.user
     val isGuest = user == null || user.id == 0
+    // Viser en venlig "På gensyn"-hilsen med navn foer selve log ud'et.
+    var showGoodbye by remember { mutableStateOf(false) }
 
     fun openUrl(url: String) = runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
     fun shareApp() = runCatching {
@@ -128,7 +130,7 @@ fun ProfileScreen(nav: NavController) {
         Spacer(Modifier.height(8.dp))
         if (!isGuest) {
             OutlinedButton(
-                onClick = { Session.clear(ctx); nav.navigate("login") { popUpTo(0) } },
+                onClick = { showGoodbye = true },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(50.dp),
                 shape = RoundedCornerShape(14.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, WrombleRed)
@@ -141,6 +143,28 @@ fun ProfileScreen(nav: NavController) {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
                 Text("Slet konto", color = Color(0xFF8A8A90))
             }
+        }
+
+        if (showGoodbye) {
+            val first = (user?.name ?: "").substringBefore(" ").trim().ifBlank { "ven" }
+            AlertDialog(
+                onDismissRequest = { showGoodbye = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showGoodbye = false
+                        Session.clear(ctx); nav.navigate("login") { popUpTo(0) }
+                    }) { Text("Log ud", color = WrombleRed, fontWeight = FontWeight.Bold) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showGoodbye = false }) {
+                        Text("Bliv", color = Color(0xFF8A8A90))
+                    }
+                },
+                title = { Text("På gensyn, $first 👋", fontWeight = FontWeight.Bold) },
+                text = { Text("Vi håber du snart kommer igen!") },
+                shape = RoundedCornerShape(20.dp),
+                containerColor = Color.White
+            )
         }
         Spacer(Modifier.height(30.dp))
     }

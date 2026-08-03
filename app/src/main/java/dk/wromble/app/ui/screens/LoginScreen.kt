@@ -190,8 +190,12 @@ fun LoginScreen(nav: NavController) {
     // et hvidt ark der fylder resten hele vejen ned til bunden.
     Column(Modifier.fillMaxSize().background(ScreenBg)) {
 
-        // ---------- Mad-collage (hero) der ruller langsomt ----------
-        Box(Modifier.fillMaxWidth().height(288.dp).clipToBounds()) {
+        // ---------- Mad-collage (hero) der ruller uendeligt ----------
+        // Fylder naesten halvdelen af skaermen og er ALTID i bevaegelse: fem
+        // kolonner (ikke tre) saa der hele tiden er mad i bevaegelse hen over
+        // hele bredden, og kolonnerne bruger forskellige billed-raekkefoelger +
+        // hastigheder saa det aldrig ser gentaget ud.
+        Box(Modifier.fillMaxWidth().weight(0.86f).clipToBounds()) {
             Row(
                 Modifier.fillMaxSize(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -205,9 +209,15 @@ fun LoginScreen(nav: NavController) {
                 ScrollingFoodColumn(
                     listOf(R.drawable.login_burger, R.drawable.login_coffee, R.drawable.login_dessert),
                     up = true, durationMs = 29000, modifier = Modifier.weight(1f))
+                ScrollingFoodColumn(
+                    listOf(R.drawable.login_icecream, R.drawable.login_burger, R.drawable.login_coffee),
+                    up = false, durationMs = 30000, modifier = Modifier.weight(1f))
+                ScrollingFoodColumn(
+                    listOf(R.drawable.login_dessert, R.drawable.login_pizza, R.drawable.login_icecream),
+                    up = true, durationMs = 35000, modifier = Modifier.weight(1f))
             }
             // Blød overgang ned mod det hvide ark
-            Box(Modifier.fillMaxWidth().height(96.dp).align(Alignment.BottomCenter)
+            Box(Modifier.fillMaxWidth().height(130.dp).align(Alignment.BottomCenter)
                 .background(Brush.verticalGradient(listOf(Color.Transparent, ScreenBg))))
         }
 
@@ -272,10 +282,12 @@ fun LoginScreen(nav: NavController) {
                             modifier = Modifier.fillMaxWidth().clickableNoRipple { welcomeDismissed = true })
                     } else {
                         // ---------- Fuldt login / opret ----------
-                        Text(if (isLogin) "Log ind eller\nopret dig" else "Opret din\nkonto",
+                        Text(if (isLogin) "Velkommen! 👋" else "Opret din\nkonto",
                             color = TextDark, fontSize = 27.sp, fontWeight = FontWeight.ExtraBold, lineHeight = 32.sp)
                         Spacer(Modifier.height(8.dp))
-                        Text("Bestil mad fra dine lokale favoritter", color = TextMuted, fontSize = 14.5.sp)
+                        Text(if (isLogin) "Lad os komme i gang med at bestille 🙂"
+                             else "Bestil mad fra dine lokale favoritter",
+                            color = TextMuted, fontSize = 14.5.sp)
 
                         Spacer(Modifier.height(24.dp))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
