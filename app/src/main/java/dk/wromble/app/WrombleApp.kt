@@ -50,6 +50,14 @@ class WrombleApp : Application(), ImageLoaderFactory {
                     .build()
             }
             .crossfade(true)
+            // Bitmap-downsampling / lav hukommelse (Google Plays "bitmap-effektivitet"-anbefaling):
+            // allowRgb565 lader Coil bruge RGB_565 (halv hukommelse pr. billede) paa
+            // hukommelses-begraensede enheder - ingen synlig forskel paa madfotos.
+            // allowHardware holder billeder som hardware-bitmaps (mest effektive) hvor muligt.
+            // Coil nedskalerer i forvejen hvert billede til den stoerrelse det vises i, saa
+            // vi aldrig holder et fuldt-oploest bitmap i hukommelsen.
+            .allowRgb565(true)
+            .allowHardware(true)
             .respectCacheHeaders(false)
             .build()
 
