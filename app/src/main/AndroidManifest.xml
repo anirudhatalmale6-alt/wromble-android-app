@@ -71,6 +71,16 @@
             </intent-filter>
         </service>
 
+        <!-- Fald-tilbage-kanal for FCM "notification"-payload (naar app'en er lukket og
+             systemet selv viser beskeden). Peger paa vores lyd-kanal, saa beskeder ALTID
+             kommer med lyd paa laast skaerm - ogsaa hvis payload'en ikke angiver en kanal. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="wromble_alert" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@android:color/holo_red_dark" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

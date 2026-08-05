@@ -1,6 +1,7 @@
 package dk.wromble.app
 
 import android.app.Application
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.media.AudioAttributes
@@ -115,6 +116,47 @@ class WrombleApp : Application(), ImageLoaderFactory {
             setSound(null, null)
         }
         nm.createNotificationChannel(track)
+
+        // --- SYSTEM-LYD-KANALER (vises + lyder af sig selv, OGSAA naar app'en er HELT lukket) ---
+        // Serveren sender nu et "notification"-payload med disse kanal-id'er. Så viser Android
+        // selv beskeden paa laast skaerm MED lyd - uden at app-koden skal koere. Det er det der
+        // gjorde beskederne upaalidelige foer (data-only kraevede at app'en selv byggede beskeden,
+        // hvilket svigter naar telefonen har lukket app-processen).
+
+        // Ny ordre (forretning/chauffoer): HOEJ alarm-lyd, spiller selv paa lydloes.
+        val alarmAttr = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        val ordersLoud = NotificationChannel(
+            CH_ORDERS_LOUD, "Nye ordrer (alarm)", NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Høj alarm ved nye ordrer – også når appen er lukket"
+            setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM), alarmAttr)
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 500, 300, 500, 300, 500)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            setShowBadge(true)
+        }
+        nm.createNotificationChannel(ordersLoud)
+
+        // Kunde-beskeder (ordre accepteret/paa vej/leveret): almindelig notifikations-lyd.
+        val alert = NotificationChannel(
+            CH_ALERT, "Ordre-beskeder", NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Lyd og besked ved ordre-opdateringer – også når appen er lukket"
+            setSound(
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            enableVibration(true)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            setShowBadge(true)
+        }
+        nm.createNotificationChannel(alert)
     }
 
     // Gemmer enhver ukendt (uncaught) crash med enheds-info, saa den kan sendes
@@ -164,6 +206,8 @@ class WrombleApp : Application(), ImageLoaderFactory {
         const val CH_STATUS = "wromble_status"
         const val CH_SERVICE = "wromble_service"     // fast notifikation for baggrunds-vagten
         const val CH_TRACK = "wromble_track"         // kundens live ordre-banner
+        const val CH_ORDERS_LOUD = "wromble_orders_v3_loud"  // system-lyd (hoej alarm) OGSAA naar app lukket
+        const val CH_ALERT = "wromble_alert"                 // system-lyd for kunde-beskeder OGSAA naar app lukket
 
         // Er en Activity synlig? Baggrunds-vagten (OrderPollService) bruger dette til at
         // undgaa dobbelt-alarm: er app'en aaben, staar skaermens egen poller for lyden.
