@@ -48,17 +48,53 @@ class WrombleMessagingService : FirebaseMessagingService() {
                 }
             }
             "order_status" -> {
-                // Kunde: behagelig lyd + live-banner der foelger ordren (fremdrift + ETA).
+                // Kunde: "kørende" ordre-notifikation med trin-tidslinje (Android-pendant til
+                // iOS Live Activity - Android har ikke Live Activities, saa vi bruger en
+                // opdaterende notifikation med fremdrifts-bjaelke + de 4 trin).
                 val stage = d["stage"]?.toIntOrNull() ?: -99
-                if (Settings.notificationsEnabled) Notifier.playChime(ctx)
-                val ongoing = stage in 0..2
-                postAlert(ctx, WrombleApp.CH_TRACK, 5099, title, body, ongoing = ongoing, stage = stage)
+                postOrderProgress(ctx, title, body, stage)
             }
             else -> {
                 if (title.isNotBlank() || body.isNotBlank())
                     postAlert(ctx, WrombleApp.CH_STATUS, 6009, title, body, ongoing = false, stage = -99)
             }
         }
+    }
+
+    // Kundens "kørende" ordre-notifikation: én notifikation (fast id 5099) der OPDATERER
+    // sig selv trin for trin med en fremdrifts-bjaelke og de fire trin (✅ udfoert, 🔴 nu,
+    // ⚪ mangler). Lyder ved hvert trin (CH_ALERT). Bliver "ongoing" mens ordren koerer og
+    // lukker naar den er leveret. Android-pendant til iOS' Live Activity-kort.
+    private fun postOrderProgress(ctx: Context, title: String, body: String, stage: Int) {
+        if (!Settings.notificationsEnabled) return
+        val steps = listOf("Modtaget", "Tilberedes", "På vej", "Leveret")
+        val lines = steps.mapIndexed { i, s ->
+            val mark = when {
+                i < stage -> "✅"
+                i == stage -> "🔴"
+                else -> "⚪"
+            }
+            "$mark  $s"
+        }.joinToString("\n")
+        val delivered = stage >= 3
+        val open = PendingIntent.getActivity(
+            ctx, 5099, Intent(ctx, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val b = NotificationCompat.Builder(ctx, WrombleApp.CH_ALERT)
+            .setSmallIcon(android.R.drawable.ic_menu_directions)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body + "\n\n" + lines))
+            .setSubText(if (delivered) "Leveret ✓" else "Følg din ordre")
+            .setContentIntent(open)
+            .setColor(0xFFE20F1E.toInt())
+            .setOnlyAlertOnce(false)                                  // lyd/heads-up ved HVERT trin
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)      // vis paa laast skaerm
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+        if (stage in 0..3) b.setProgress(3, stage.coerceIn(0, 3), false)
+        if (delivered) { b.setOngoing(false); b.setAutoCancel(true) } else { b.setOngoing(true) }
+        runCatching { NotificationManagerCompat.from(ctx).notify(5099, b.build()) }
     }
 
     private fun postAlert(ctx: Context, channel: String, id: Int, title: String, body: String, ongoing: Boolean, stage: Int) {
